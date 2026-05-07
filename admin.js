@@ -124,7 +124,7 @@ const adminApp = {
         // Real-time listener for reports
         db.collection('reports').onSnapshot((snapshot) => {
             const reports = [];
-            snapshot.forEach(doc => reports.push(doc.data()));
+            snapshot.forEach(doc => reports.push({ id: doc.id, ...doc.data() }));
             this.reportsCache = reports.sort((a, b) => new Date(b.date) - new Date(a.date));
             this.currentData = [...this.reportsCache, ...mockDatabase].sort((a, b) => new Date(b.date) - new Date(a.date));
             this.renderTable(this.currentData);
