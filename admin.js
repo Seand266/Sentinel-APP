@@ -500,7 +500,7 @@ const adminApp = {
 
                 html += `
                     <tr>
-                        <td class="text-muted">${dateStr}</td>
+                        <td class="text-muted" style="padding-left: 16px;">${dateStr}</td>
                         <td style="font-weight: 500;">${log.eventType}</td>
                         <td>${statusBadge}</td>
                         <td class="text-muted">${log.repId}</td>
