@@ -33,6 +33,18 @@ const logicTreeNodes = {
 };
 
 const app = {
+    logDeviceHealth: function(sn, status, eventType) {
+        if (!sn || sn === 'Cleared' || sn === 'Unknown') return;
+        const repName = app.auth.currentUser ? `${app.auth.currentUser.first} ${app.auth.currentUser.last}` : "Unknown Rep";
+        db.collection('device_health_logs').add({
+            serialNumber: sn,
+            timestamp: new Date().toISOString(),
+            status: status,
+            eventType: eventType,
+            repId: repName
+        });
+    },
+
     // --- Auth System ---
     auth: {
         currentUser: null,
@@ -237,17 +249,10 @@ const app = {
                 if (!app.auth.currentUser.sns) app.auth.currentUser.sns = {};
                 app.auth.currentUser.sns[key] = newSN.trim();
                 
-                // Track SN History
-                if (!app.auth.currentUser.sn_history) app.auth.currentUser.sn_history = [];
-                app.auth.currentUser.sn_history.push({
-                    date: new Date().toISOString(),
-                    deviceKey: key,
-                    deviceName: deviceName,
-                    sn: newSN.trim() || 'Cleared'
-                });
-                
                 // Save to cloud
                 app.auth._saveCurrentUser();
+                
+                app.logDeviceHealth(newSN.trim(), 'Assigned', 'SN Assigned');
                 
                 this.loadDashboardState();
             }
@@ -367,6 +372,9 @@ const app = {
             app.auth.currentUser.statuses[key] = status;
             
             app.auth._saveCurrentUser();
+            
+            const sn = (app.auth.currentUser.sns && app.auth.currentUser.sns[key]) ? app.auth.currentUser.sns[key] : 'Unknown';
+            app.logDeviceHealth(sn, status, 'Report Submitted');
 
             this.loadDashboardState();
             this.closeReportModal();

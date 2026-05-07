@@ -157,6 +157,41 @@
                         </div>
                     </div>
 
+                    <!-- Device Health History Search -->
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                            <h3 style="font-size: 16px; margin: 0;">Device Health Logs</h3>
+                        </div>
+                        <div style="padding: 16px;">
+                            <div class="search-bar" style="margin-bottom: 16px;">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="sn-search-input" placeholder="Enter Serial Number to search history...">
+                                <button class="btn primary" style="padding: 8px 16px; font-size: 12px; margin-left: 8px;" onclick="adminApp.searchDeviceHistory()">Search</button>
+                            </div>
+                            <div id="device-health-results" style="display: none;">
+                                <div id="reliability-flag" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 16px; font-weight: 500; align-items: center; gap: 8px;">
+                                    <i class="ph ph-warning-circle" style="font-size: 18px;"></i>
+                                    <span>Reliability Flag: This device has experienced excessive "Down" events in the last 30 days.</span>
+                                </div>
+                                <div class="data-table-container" style="margin-bottom: 0;">
+                                    <table id="device-health-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Event Type</th>
+                                                <th>Status</th>
+                                                <th>Reporter</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Populated by searchDeviceHistory -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Credential Requests Table -->
                     <div class="card glass-panel" style="padding: 0;">
                         <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">

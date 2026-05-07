@@ -1,6 +1,18 @@
 // Admin Application Logic
 
 const adminApp = {
+    logDeviceHealth: function(sn, status, eventType) {
+        if (!sn || sn === 'Cleared' || sn === 'Unknown') return;
+        const adminName = "Admin";
+        db.collection('device_health_logs').add({
+            serialNumber: sn,
+            timestamp: new Date().toISOString(),
+            status: status,
+            eventType: eventType,
+            repId: adminName
+        });
+    },
+
     currentUser: null,
     currentData: [],
     usersCache: {},
@@ -227,29 +239,6 @@ const adminApp = {
             }
 
             let historyHtml = '';
-            if (user.sn_history && user.sn_history.length > 0) {
-                const historyItems = user.sn_history.slice().reverse().map(h => {
-                    const d = new Date(h.date);
-                    const dStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
-                    return `
-                        <div style="font-size: 11px; margin-bottom: 4px; display: flex; justify-content: space-between;">
-                            <span class="text-muted">${dStr}</span>
-                            <span>${h.deviceName}: <b>${h.sn}</b></span>
-                        </div>
-                    `;
-                }).join('');
-
-                historyHtml = `
-                    <div style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px;">
-                        <h5 style="margin: 0 0 8px 0; font-size: 11px; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
-                            <i class="ph ph-clock-counter-clockwise"></i> View SN Audit Log
-                        </h5>
-                        <div style="display: none; background: #F5F6F7; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-highlight); max-height: 100px; overflow-y: auto;">
-                            ${historyItems}
-                        </div>
-                    </div>
-                `;
-            }
 
             html += `
                 <div class="card glass-panel" style="padding: 16px;">
@@ -304,6 +293,9 @@ const adminApp = {
             user.statuses[deviceId] = newStatus;
             
             await db.collection('users').doc(email).set(user);
+            
+            const sn = (user.sns && user.sns[deviceId]) ? user.sns[deviceId] : 'Unknown';
+            this.logDeviceHealth(sn, newStatus, 'Admin Status Override');
         } catch (err) {
             alert("Failed to update device status: " + err.message);
             this.loadUsers(document.getElementById('rep-search-input').value); // Revert UI
@@ -459,6 +451,78 @@ const adminApp = {
         });
 
         this.renderTable(filtered);
+    },
+
+    searchDeviceHistory: async function() {
+        const query = document.getElementById('sn-search-input').value.trim();
+        const resultsContainer = document.getElementById('device-health-results');
+        const tbody = document.querySelector('#device-health-table tbody');
+        const flagAlert = document.getElementById('reliability-flag');
+
+        if (!query) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Searching...</td></tr>';
+        resultsContainer.style.display = 'block';
+        flagAlert.style.display = 'none';
+
+        try {
+            const snapshot = await db.collection('device_health_logs')
+                .where('serialNumber', '==', query)
+                .get();
+
+            const logs = [];
+            snapshot.forEach(doc => logs.push(doc.data()));
+
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;" class="text-muted">No history found for this Serial Number.</td></tr>';
+                return;
+            }
+
+            // Sort newest first
+            logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            let html = '';
+            let downEvents30Days = 0;
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            logs.forEach(log => {
+                const d = new Date(log.timestamp);
+                const dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+                
+                let statusBadge = '';
+                if (log.status.toLowerCase().includes('operational')) statusBadge = `<span class="status-indicator online">${log.status}</span>`;
+                else if (log.status.toLowerCase().includes('issue')) statusBadge = `<span class="status-indicator warning">${log.status}</span>`;
+                else statusBadge = `<span class="status-indicator error">${log.status}</span>`;
+
+                html += `
+                    <tr>
+                        <td class="text-muted">${dateStr}</td>
+                        <td style="font-weight: 500;">${log.eventType}</td>
+                        <td>${statusBadge}</td>
+                        <td class="text-muted">${log.repId}</td>
+                    </tr>
+                `;
+
+                if (log.status === 'Having Issues' || log.status === 'Broken/Unusable') {
+                    if (d >= thirtyDaysAgo) {
+                        downEvents30Days++;
+                    }
+                }
+            });
+
+            tbody.innerHTML = html;
+
+            if (downEvents30Days >= 2) {
+                flagAlert.style.display = 'flex';
+            }
+
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger);">Error searching logs: ${err.message}</td></tr>`;
+        }
     },
 
     exportToCSV: function() {
