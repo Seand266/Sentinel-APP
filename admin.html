@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SENTINEL - Admin</title>
+    
+    <meta name="theme-color" content="#1E1B4B">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        .data-table-container { width: 100%; overflow-x: auto; margin-bottom: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-surface); }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        th, td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        th { background: #F5F6F7; color: var(--text-muted); font-weight: 500; }
+        tr:hover td { background: #F0F2F5; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Auth Screen -->
+        <section id="view-auth" class="view flex-active login-screen">
+            <div class="logo" style="justify-content: center; margin-bottom: 24px; flex-direction: column; align-items: center; gap: 8px;">
+                <div id="sentinel-logo-slot" style="width: 110px; height: 110px; display: flex; align-items: center; justify-content: center;">
+                    <img src="sentinel-logo.png" alt="SENTINEL Logo" style="width: 110px; height: 110px; object-fit: contain; border-radius: 22px;">
+                </div>
+                <h1 style="font-size: 42px; font-weight: 700; letter-spacing: 6px; margin: 0;">SENTINEL</h1>
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0; letter-spacing: 1px;">Admin Command Center</p>
+            </div>
+            <div class="login-box card glass-panel">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="tab-login" onclick="adminApp.switchTab('login')">Admin Login</button>
+                    <button class="auth-tab" id="tab-signup" onclick="adminApp.switchTab('signup')">Sign Up</button>
+                </div>
+                
+                <!-- Login Form -->
+                <div id="auth-login">
+                    <div class="form-group mb-10">
+                        <input type="email" id="login-email" placeholder="Email (@2020companies.com)">
+                    </div>
+                    <div class="form-group mb-20">
+                        <input type="password" id="login-pass" placeholder="Password">
+                    </div>
+                    <button class="btn primary full-width" onclick="adminApp.login()">Secure Login <i class="ph ph-lock-key-open"></i></button>
+                </div>
+
+                <!-- Signup Form -->
+                <div id="auth-signup" class="hidden">
+                    <div class="form-group mb-10">
+                        <input type="text" id="signup-first" placeholder="First Name">
+                    </div>
+                    <div class="form-group mb-10">
+                        <input type="text" id="signup-last" placeholder="Last Name">
+                    </div>
+                    <div class="form-group mb-10">
+                        <label class="text-sm text-muted" style="text-align: left;">Hire Date</label>
+                        <input type="date" id="signup-date">
+                    </div>
+                    <div class="form-group mb-10">
+                        <input type="email" id="signup-email" placeholder="Email (@2020companies.com)">
+                    </div>
+                    <div class="form-group mb-20">
+                        <input type="password" id="signup-pass" placeholder="Create Admin Password">
+                    </div>
+                    <button class="btn primary full-width" onclick="adminApp.signup()">Create Admin Account</button>
+                </div>
+                <div class="validation-message mt-10" id="auth-error"></div>
+            </div>
+        </section>
+
+        <!-- Main Admin Interface -->
+        <div id="admin-content" style="display: none; height: 100%; flex-direction: column;">
+            <header class="app-header">
+                <div class="logo">
+                    <i class="ph ph-shield-check"></i>
+                    <h1>SENTINEL Admin</h1>
+                </div>
+                <div class="user-profile" onclick="adminApp.logout()">
+                    <i class="ph ph-sign-out"></i>
+                </div>
+            </header>
+
+            <main>
+                <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div>
+                        <h2>Fleet Data Collection</h2>
+                        <p>Aggregated hardware reports from all representatives.</p>
+                    </div>
+                    <button class="btn primary" onclick="adminApp.exportToCSV()">
+                        <i class="ph ph-microsoft-excel-logo"></i> Export to CSV
+                    </button>
+                </div>
+
+                <div class="dashboard-grid">
+                    <!-- Global Stats -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <div class="card glass-panel" style="text-align: center; padding: 16px;">
+                            <div style="font-size: 24px; font-weight: 700; color: var(--success);" id="stat-online">0</div>
+                            <div class="text-muted text-sm">Operational</div>
+                        </div>
+                        <div class="card glass-panel" style="text-align: center; padding: 16px;">
+                            <div style="font-size: 24px; font-weight: 700; color: var(--warning);" id="stat-issues">0</div>
+                            <div class="text-muted text-sm">Having Issues</div>
+                        </div>
+                        <div class="card glass-panel" style="text-align: center; padding: 16px;">
+                            <div style="font-size: 24px; font-weight: 700; color: var(--danger);" id="stat-broken">0</div>
+                            <div class="text-muted text-sm">Broken/RMA</div>
+                        </div>
+                    </div>
+
+                    <!-- Collated Data Table -->
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                            <h3 style="font-size: 16px; margin-bottom: 16px;">Live Representative Reports</h3>
+                            <div class="search-bar" style="margin-bottom: 0;">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="search-input" placeholder="Search by Rep Name or Device..." onkeyup="adminApp.filterTable()">
+                            </div>
+                        </div>
+                        <div class="data-table-container">
+                            <table id="reports-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Representative</th>
+                                        <th>Device</th>
+                                        <th>Status</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by admin.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Fleet Users & Devices -->
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                            <h3 style="font-size: 16px; margin: 0;">Representative Fleet Profiles</h3>
+                        </div>
+                        <div style="padding: 16px 16px 0 16px;">
+                            <div class="search-bar" style="margin-bottom: 0;">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="rep-search-input" placeholder="Search representatives by name or email..." onkeyup="adminApp.filterReps()">
+                            </div>
+                        </div>
+                        <div id="users-grid" style="padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; max-height: 400px; overflow-y: auto;">
+                            <!-- Populated by admin.js -->
+                        </div>
+                    </div>
+
+                    <!-- Credential Requests Table -->
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="font-size: 16px; margin: 0;">Pending Credential Requests</h3>
+                            <button class="btn secondary" style="padding: 8px 12px; font-size: 12px; flex: 0 0 auto;" onclick="adminApp.clearRequests()">Clear All</button>
+                        </div>
+                        <div class="data-table-container" style="margin-bottom: 0;">
+                            <table id="credentials-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Representative</th>
+                                        <th>Target System</th>
+                                        <th>Reason</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by admin.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBE8yKvBzEYUhF9qkXxDHK533rJlXHR6KA",
+            authDomain: "sentinel-f77ba.firebaseapp.com",
+            projectId: "sentinel-f77ba",
+            storageBucket: "sentinel-f77ba.firebasestorage.app",
+            messagingSenderId: "1090550692649",
+            appId: "1:1090550692649:web:dbb4d9aade527d49a79538"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+    </script>
+    <script src="admin.js"></script>
+</body>
+</html>
