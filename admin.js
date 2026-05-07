@@ -195,7 +195,11 @@ const adminApp = {
                                 <span style="color: var(--text-main); display: flex; align-items: center; gap: 6px;"><i class="ph ${d.icon}" style="font-size: 14px;"></i> ${d.name}</span>
                                 <span style="font-size: 10px; color: var(--text-muted);">${sn}</span>
                             </span>
-                            <span class="status-indicator ${badgeClass}" style="padding: 2px 6px; font-size: 10px;">${status}</span>
+                            <select class="status-indicator ${badgeClass}" style="padding: 2px 6px; font-size: 10px; border: none; outline: none; cursor: pointer; appearance: auto;" onchange="adminApp.updateDeviceStatus('${email}', '${d.id}', this.value)">
+                                <option value="Operational" ${status === 'Operational' ? 'selected' : ''}>Operational</option>
+                                <option value="Having Issues" ${status === 'Having Issues' ? 'selected' : ''}>Having Issues</option>
+                                <option value="Broken/Unusable" ${status === 'Broken/Unusable' ? 'selected' : ''}>Broken/Unusable</option>
+                            </select>
                         </div>
                     `;
                 }
@@ -217,7 +221,11 @@ const adminApp = {
                                 <span style="color: var(--text-main); display: flex; align-items: center; gap: 6px;"><i class="ph ph-sunglasses" style="font-size: 14px;"></i> ${d.model}</span>
                                 <span style="font-size: 10px; color: var(--text-muted);">${sn}</span>
                             </span>
-                            <span class="status-indicator ${badgeClass}" style="padding: 2px 6px; font-size: 10px;">${status}</span>
+                            <select class="status-indicator ${badgeClass}" style="padding: 2px 6px; font-size: 10px; border: none; outline: none; cursor: pointer; appearance: auto;" onchange="adminApp.updateDeviceStatus('${email}', '${d.key}', this.value)">
+                                <option value="Operational" ${status === 'Operational' ? 'selected' : ''}>Operational</option>
+                                <option value="Having Issues" ${status === 'Having Issues' ? 'selected' : ''}>Having Issues</option>
+                                <option value="Broken/Unusable" ${status === 'Broken/Unusable' ? 'selected' : ''}>Broken/Unusable</option>
+                            </select>
                         </div>
                     `;
                 }
@@ -292,6 +300,32 @@ const adminApp = {
                 alert("User account successfully deleted.");
             } catch (err) {
                 alert("Failed to delete user: " + err.message);
+            }
+        }
+    },
+
+    updateDeviceStatus: async function(email, deviceId, newStatus) {
+        try {
+            const user = this.usersCache[email];
+            if (!user) return;
+            if (!user.statuses) user.statuses = {};
+            
+            user.statuses[deviceId] = newStatus;
+            
+            await db.collection('users').doc(email).set(user);
+        } catch (err) {
+            alert("Failed to update device status: " + err.message);
+            this.loadUsers(document.getElementById('rep-search-input').value); // Revert UI
+        }
+    },
+
+    deleteReport: async function(reportId) {
+        if(confirm("Are you sure you want to permanently delete this report?")) {
+            try {
+                await db.collection('reports').doc(reportId).delete();
+                // onSnapshot will auto-refresh
+            } catch (err) {
+                alert("Failed to delete report: " + err.message);
             }
         }
     },
@@ -392,6 +426,7 @@ const adminApp = {
             if (row.issuePath) fullNotes += `<div style="margin-bottom: 4px;"><b>Diagnostic Path:</b> ${row.issuePath}</div>`;
             if (row.resolution) fullNotes += `<div style="margin-bottom: 4px;"><b>Resolution:</b> ${row.resolution}</div>`;
             if (row.photoUrl) fullNotes += `<div><a href="${row.photoUrl}" target="_blank" style="color: var(--primary); text-decoration: underline;">View Uploaded Photo</a></div>`;
+            if (row.id) fullNotes += `<div style="margin-top: 12px;"><button class="btn" style="background: transparent; color: var(--danger); border: 1px solid var(--danger); font-size: 11px; padding: 4px 12px; cursor: pointer; border-radius: var(--radius-sm);" onclick="adminApp.deleteReport('${row.id}')"><i class="ph ph-trash"></i> Delete Report</button></div>`;
             if (!fullNotes) fullNotes = '<i>No additional notes provided.</i>';
 
             const summaryText = row.notes || row.resolution || 'View details';
