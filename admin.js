@@ -372,22 +372,48 @@ const adminApp = {
             return;
         }
 
-        data.forEach(row => {
+        data.forEach((row, idx) => {
             const d = new Date(row.date);
             const dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
             
+            // Normalize properties since both mock data and real firestore data are merged
+            const repName = row.repId || row.userName || 'Unknown Rep';
+            const deviceName = row.device || row.deviceName || 'Unknown Device';
+            const status = row.status || 'open';
+            
             let statusBadge = '';
-            if (row.status === 'Operational') statusBadge = `<span class="status-indicator online">${row.status}</span>`;
-            else if (row.status === 'Having Issues') statusBadge = `<span class="status-indicator warning">${row.status}</span>`;
-            else statusBadge = `<span class="status-indicator error">${row.status}</span>`;
+            if (status.toLowerCase().includes('operational') || status === 'closed') statusBadge = `<span class="status-indicator online">${status}</span>`;
+            else if (status.toLowerCase().includes('issue') || status === 'open') statusBadge = `<span class="status-indicator warning">${status}</span>`;
+            else statusBadge = `<span class="status-indicator error">${status}</span>`;
+
+            // Build the expanded notes content
+            let fullNotes = '';
+            if (row.notes) fullNotes += `<div style="margin-bottom: 4px;"><b>Notes:</b> ${row.notes}</div>`;
+            if (row.issuePath) fullNotes += `<div style="margin-bottom: 4px;"><b>Diagnostic Path:</b> ${row.issuePath}</div>`;
+            if (row.resolution) fullNotes += `<div style="margin-bottom: 4px;"><b>Resolution:</b> ${row.resolution}</div>`;
+            if (row.photoUrl) fullNotes += `<div><a href="${row.photoUrl}" target="_blank" style="color: var(--primary); text-decoration: underline;">View Uploaded Photo</a></div>`;
+            if (!fullNotes) fullNotes = '<i>No additional notes provided.</i>';
+
+            const summaryText = row.notes || row.resolution || 'View details';
+            const rowId = `report-row-${idx}`;
 
             html += `
-                <tr>
+                <tr style="cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--surface-hover)'" onmouseout="this.style.backgroundColor='transparent'" onclick="document.getElementById('${rowId}-details').style.display = document.getElementById('${rowId}-details').style.display === 'none' ? 'table-row' : 'none'">
                     <td class="text-muted">${dateStr}</td>
-                    <td style="font-weight: 500;">${row.repId}</td>
-                    <td>${row.device}</td>
+                    <td style="font-weight: 500;">${repName}</td>
+                    <td>${deviceName}</td>
                     <td>${statusBadge}</td>
-                    <td class="text-muted" style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${row.notes}</td>
+                    <td class="text-muted" style="max-width: 200px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px;">${summaryText}</span>
+                            <i class="ph ph-caret-down"></i>
+                        </div>
+                    </td>
+                </tr>
+                <tr id="${rowId}-details" style="display: none; background-color: var(--bg-body);">
+                    <td colspan="5" style="padding: 12px 16px; font-size: 13px; color: var(--text-main); white-space: normal; border-left: 4px solid var(--primary);">
+                        ${fullNotes}
+                    </td>
                 </tr>
             `;
         });
