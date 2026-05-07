@@ -422,7 +422,7 @@ const app = {
             resContent.innerHTML = `<strong>Action:</strong> ${nodeData.resolution}`;
             
             if (nodeData.type === 'error' || nodeData.type === 'warning') {
-                resContent.innerHTML += `<br><br><a href="https://2020-meta-traini.formaloo.me/me79po" target="_blank" class="btn primary" style="display:inline-block; margin-top:15px; background-color: #007BFF; box-shadow: 0 0 15px rgba(0,123,255,0.6); border: 1px solid #3395ff; color: white;">Submit Escalation Form <i class="ph ph-external-link"></i></a>`;
+                resContent.innerHTML += `<br><br><div style="margin-top:15px; padding:12px; background:rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); border-radius: var(--radius-sm); color: var(--danger); font-weight: 500;"><i class="ph ph-warning-circle"></i> This issue requires escalation. Completing this diagnostic will submit an Escalation Request to the Admin Dashboard.</div>`;
             }
 
             resContent.className = 'resolution-box';
@@ -430,6 +430,8 @@ const app = {
             if (nodeData.requirePhoto) photoSection.classList.remove('hidden');
             else photoSection.classList.add('hidden');
             this.data.requirePhoto = nodeData.requirePhoto;
+            this.data.resolutionText = nodeData.resolution;
+            this.data.resolutionType = nodeData.type || 'success';
             this._goToStep('step-resolution');
         },
         handleFileUpload: function(event) {
@@ -446,7 +448,7 @@ const app = {
             }
         },
         reset: function() {
-            this.data = { deviceType: null, photoAttached: false, requirePhoto: false };
+            this.data = { deviceType: null, photoAttached: false, requirePhoto: false, resolutionText: null, resolutionType: null };
             const deviceSelect = document.getElementById('diagnostic-device-select');
             if (deviceSelect) deviceSelect.value = "";
             document.getElementById('sn-error').textContent = "";
@@ -456,7 +458,39 @@ const app = {
         },
         complete: function() {
             if (this.data.requirePhoto && !this.data.photoAttached) { alert("Please upload the required photo documentation before completing."); return; }
-            alert(`Diagnostic Logged!\nDevice: ${this.data.deviceType || 'Unknown'}\nSuccessfully saved to local database.`);
+            
+            const repName = app.auth.currentUser ? `${app.auth.currentUser.first} ${app.auth.currentUser.last}` : "Unknown Rep";
+            let reportStatus = 'Resolved Locally';
+            let eventType = 'Diagnostic Report';
+            
+            if (this.data.resolutionType === 'error') {
+                reportStatus = 'Replacement Required';
+                eventType = 'Escalation - Replacement';
+            } else if (this.data.resolutionType === 'warning') {
+                reportStatus = 'Escalation Request';
+                eventType = 'Escalation - Support';
+            }
+
+            // Push to reports collection
+            db.collection('reports').add({
+                date: new Date().toISOString(),
+                repId: repName,
+                device: this.data.deviceType || 'Unknown Device',
+                model: 'Diagnostic Run',
+                status: reportStatus,
+                notes: `Diagnostic Wizard Completed. Resolution: ${this.data.resolutionText}`,
+                photoAttached: this.data.photoAttached
+            });
+
+            // Find SN and push to device_health_logs
+            let sn = 'Unknown';
+            if (app.auth.currentUser && app.auth.currentUser.sns) {
+                if (this.data.deviceType === 'VR Headset') sn = app.auth.currentUser.sns['vr'] || 'Unknown';
+                else if (this.data.deviceType === 'Smart Glasses') sn = app.auth.currentUser.sns['glasses'] || 'Unknown';
+            }
+            app.logDeviceHealth(sn, reportStatus, eventType);
+
+            alert(`Diagnostic Logged!\nStatus: ${reportStatus}\nSuccessfully submitted to Admin Dashboard.`);
             this.reset();
             app.nav.goTo('dashboard');
         },
