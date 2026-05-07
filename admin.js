@@ -1,14 +1,5 @@
 // Admin Application Logic
 
-// Mock data simulating a database of aggregated rep reports
-const mockDatabase = [
-    { date: "2026-05-06T09:12:00Z", repId: "John Doe", device: "Meta Quest 3", status: "Operational", notes: "All good" },
-    { date: "2026-05-06T10:05:00Z", repId: "Jane Smith", device: "Ray-Ban Meta", status: "Having Issues", notes: "Bluetooth won't pair with terminal" },
-    { date: "2026-05-06T11:30:00Z", repId: "Mike Johnson", device: "Samsung Tablet", status: "Broken/Unusable", notes: "Screen shattered during transit" },
-    { date: "2026-05-06T14:45:00Z", repId: "Sarah Connor", device: "Meta Quest 3", status: "Having Issues", notes: "Controllers not tracking correctly" },
-    { date: "2026-05-06T15:20:00Z", repId: "John Doe", device: "Samsung Demo Device", status: "Operational", notes: "" }
-];
-
 const adminApp = {
     currentUser: null,
     currentData: [],
@@ -126,7 +117,7 @@ const adminApp = {
             const reports = [];
             snapshot.forEach(doc => reports.push({ id: doc.id, ...doc.data() }));
             this.reportsCache = reports.sort((a, b) => new Date(b.date) - new Date(a.date));
-            this.currentData = [...this.reportsCache, ...mockDatabase].sort((a, b) => new Date(b.date) - new Date(a.date));
+            this.currentData = [...this.reportsCache].sort((a, b) => new Date(b.date) - new Date(a.date));
             this.renderTable(this.currentData);
             this.updateStats(this.currentData);
         });
