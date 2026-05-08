@@ -75,11 +75,12 @@ const app = {
             const first = document.getElementById('signup-first').value.trim();
             const last = document.getElementById('signup-last').value.trim();
             const date = document.getElementById('signup-date').value;
+            const retailer = document.getElementById('signup-retailer').value;
             const email = document.getElementById('signup-email').value.trim().toLowerCase();
             const pass = document.getElementById('signup-pass').value;
             const errorEl = document.getElementById('auth-error');
 
-            if (!first || !last || !date || !email || !pass) {
+            if (!first || !last || !date || !retailer || !email || !pass) {
                 errorEl.innerText = "Please fill in all fields.";
                 return;
             }
@@ -89,12 +90,17 @@ const app = {
                 return;
             }
 
+            let toggles = {};
+            if (retailer === 'Best Buy') toggles = { vr: true, vr3s: false, glasses: true, tablet: true, demo: true };
+            else if (retailer === 'Target') toggles = { vr: false, vr3s: true, glasses: true, tablet: true, demo: true };
+            else if (retailer === 'NFM') toggles = { vr: true, vr3s: false, glasses: false, tablet: true, demo: false };
+
             try {
                 // Create user in Firebase Auth
                 await auth.createUserWithEmailAndPassword(email, pass);
                 
                 // Store extended profile data in Firestore
-                const userData = { first, last, hireDate: date };
+                const userData = { first, last, hireDate: date, retailer, toggles };
                 await db.collection('users').doc(email).set(userData);
                 
                 this._completeLogin(userData, email);

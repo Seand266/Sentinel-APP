@@ -535,7 +535,7 @@ const adminApp = {
             return;
         }
 
-        const headers = "Representative Name,Email,Meta Quest 3,Meta Quest 3S,Ray-Ban Meta,Samsung Tablet,Samsung Demo Device,Additional Smart Glasses\n";
+        const headers = "Representative Name,Email,Retailer,Meta Quest 3,Meta Quest 3S,Ray-Ban Meta,Samsung Tablet,Samsung Demo Device,Additional Smart Glasses\n";
         let csvRows = [];
 
         userEmails.forEach(email => {
@@ -543,6 +543,7 @@ const adminApp = {
             const toggles = user.toggles || { vr: true, vr3s: true, glasses: true, tablet: true, demo: true };
             const statuses = user.statuses || {};
             const dynDevices = user.dynamicDevices || [];
+            const retailer = user.retailer || 'Unassigned';
             
             const repName = `${user.first} ${user.last}`;
 
@@ -563,7 +564,7 @@ const adminApp = {
             });
             const additionalStr = additional.length > 0 ? additional.join(" | ") : "None";
 
-            csvRows.push(`"${repName}","${email}","${vrStatus}","${vr3sStatus}","${glassesStatus}","${tabletStatus}","${demoStatus}","${additionalStr}"`);
+            csvRows.push(`"${repName}","${email}","${retailer}","${vrStatus}","${vr3sStatus}","${glassesStatus}","${tabletStatus}","${demoStatus}","${additionalStr}"`);
         });
 
         const csvContent = "data:text/csv;charset=utf-8," + headers + csvRows.join("\n");
