@@ -168,13 +168,14 @@ const adminApp = {
 
             let devicesHtml = '';
             
-            const toggles = user.toggles || { vr: true, glasses: true, tablet: true, demo: true };
+            const toggles = user.toggles || { vr: true, vr3s: true, glasses: true, tablet: true, demo: true };
             const statuses = user.statuses || {};
             const dynDevices = user.dynamicDevices || [];
             
             // Define base fleet devices
             const baseDevices = [
                 { id: 'vr', name: 'Meta Quest 3', icon: 'ph-headset' },
+                { id: 'vr3s', name: 'Meta Quest 3S', icon: 'ph-headset' },
                 { id: 'glasses', name: 'Ray-Ban Meta', icon: 'ph-sunglasses' },
                 { id: 'tablet', name: 'Samsung Tablet', icon: 'ph-device-tablet' },
                 { id: 'demo', name: 'Samsung Demo Device', icon: 'ph-device-mobile' }
@@ -534,12 +535,12 @@ const adminApp = {
             return;
         }
 
-        const headers = "Representative Name,Email,Meta Quest 3,Ray-Ban Meta,Samsung Tablet,Samsung Demo Device,Additional Smart Glasses\n";
+        const headers = "Representative Name,Email,Meta Quest 3,Meta Quest 3S,Ray-Ban Meta,Samsung Tablet,Samsung Demo Device,Additional Smart Glasses\n";
         let csvRows = [];
 
         userEmails.forEach(email => {
             const user = users[email];
-            const toggles = user.toggles || { vr: true, glasses: true, tablet: true, demo: true };
+            const toggles = user.toggles || { vr: true, vr3s: true, glasses: true, tablet: true, demo: true };
             const statuses = user.statuses || {};
             const dynDevices = user.dynamicDevices || [];
             
@@ -548,6 +549,7 @@ const adminApp = {
             const getStatus = (id) => toggles[id] !== false ? (statuses[id] || 'Operational') : 'Not Assigned';
 
             const vrStatus = getStatus('vr');
+            const vr3sStatus = getStatus('vr3s');
             const glassesStatus = getStatus('glasses');
             const tabletStatus = getStatus('tablet');
             const demoStatus = getStatus('demo');
@@ -561,7 +563,7 @@ const adminApp = {
             });
             const additionalStr = additional.length > 0 ? additional.join(" | ") : "None";
 
-            csvRows.push(`"${repName}","${email}","${vrStatus}","${glassesStatus}","${tabletStatus}","${demoStatus}","${additionalStr}"`);
+            csvRows.push(`"${repName}","${email}","${vrStatus}","${vr3sStatus}","${glassesStatus}","${tabletStatus}","${demoStatus}","${additionalStr}"`);
         });
 
         const csvContent = "data:text/csv;charset=utf-8," + headers + csvRows.join("\n");

@@ -98,14 +98,30 @@
                             <div class="device-header">
                                 <i class="ph ph-headset"></i>
                                 <div>
-                                    <h3>VR Headset</h3>
-                                    <p>Meta Quest 3 <br><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('vr', 'Meta Quest 3')" id="sn-display-vr">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
+                                    <h3>Meta Quest 3</h3>
+                                    <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('vr', 'Meta Quest 3')" id="sn-display-vr">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
                                 </div>
                             </div>
                             <div class="device-status">
                                 <span class="status-indicator online" id="status-vr">Operational</span>
                             </div>
-                            <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('VR Headset', 'Meta Quest 3', 'status-vr')">
+                            <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Meta Quest 3', 'Meta Quest 3', 'status-vr')">
+                                Report Status
+                            </button>
+                        </div>
+
+                        <div class="card glass-panel device-card" id="card-vr3s">
+                            <div class="device-header">
+                                <i class="ph ph-headset"></i>
+                                <div>
+                                    <h3>Meta Quest 3S</h3>
+                                    <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('vr3s', 'Meta Quest 3S')" id="sn-display-vr3s">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
+                                </div>
+                            </div>
+                            <div class="device-status">
+                                <span class="status-indicator online" id="status-vr3s">Operational</span>
+                            </div>
+                            <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Meta Quest 3S', 'Meta Quest 3S', 'status-vr3s')">
                                 Report Status
                             </button>
                         </div>
@@ -114,14 +130,14 @@
                             <div class="device-header">
                                 <i class="ph ph-sunglasses"></i>
                                 <div>
-                                    <h3>Smart Glasses</h3>
-                                    <p>Ray-Ban Meta <br><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('glasses', 'Ray-Ban Meta')" id="sn-display-glasses">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
+                                    <h3>Ray-Ban Meta</h3>
+                                    <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('glasses', 'Ray-Ban Meta')" id="sn-display-glasses">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
                                 </div>
                             </div>
                             <div class="device-status">
                                 <span class="status-indicator online" id="status-glasses">Operational</span>
                             </div>
-                            <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Smart Glasses', 'Ray-Ban Meta', 'status-glasses')">
+                            <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Ray-Ban Meta', 'Ray-Ban Meta', 'status-glasses')">
                                 Report Status
                             </button>
                         </div>
@@ -131,13 +147,13 @@
                                 <i class="ph ph-device-tablet"></i>
                                 <div>
                                     <h3>Samsung Tablet</h3>
-                                    <p>Galaxy Tab <br><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('tablet', 'Galaxy Tab')" id="sn-display-tablet">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
+                                    <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('tablet', 'Samsung Tablet')" id="sn-display-tablet">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
                                 </div>
                             </div>
                             <div class="device-status">
                                 <span class="status-indicator online" id="status-tablet">Operational</span>
                             </div>
-                            <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Samsung Tablet', 'Galaxy Tab', 'status-tablet')">
+                            <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Samsung Tablet', 'Samsung Tablet', 'status-tablet')">
                                 Report Status
                             </button>
                         </div>
@@ -147,13 +163,13 @@
                                 <i class="ph ph-device-mobile"></i>
                                 <div>
                                     <h3>Samsung Demo Device</h3>
-                                    <p>Galaxy Demo <br><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('demo', 'Galaxy Demo')" id="sn-display-demo">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
+                                    <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('demo', 'Samsung Demo Device')" id="sn-display-demo">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
                                 </div>
                             </div>
                             <div class="device-status">
                                 <span class="status-indicator online" id="status-demo">Operational</span>
                             </div>
-                            <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Samsung Demo Device', 'Galaxy Demo', 'status-demo')">
+                            <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Samsung Demo Device', 'Samsung Demo Device', 'status-demo')">
                                 Report Status
                             </button>
                         </div>
@@ -177,8 +193,7 @@
                             <div class="form-group mb-20" style="text-align: left;">
                                 <select id="diagnostic-device-select">
                                     <option value="">Select a device...</option>
-                                    <option value="VR Headset">VR Headset</option>
-                                    <option value="Smart Glasses">Smart Glasses</option>
+                                    <!-- Options will be dynamically populated in app.js -->
                                 </select>
                             </div>
                             <div class="validation-message" id="sn-error"></div>
@@ -323,11 +338,15 @@
                     <p class="text-muted mb-20">Toggle the devices you currently have assigned.</p>
                     
                     <div class="form-group mb-10" style="display: flex; justify-content: space-between; align-items: center;">
-                        <label style="margin: 0; font-weight: 500;">VR Headset</label>
+                        <label style="margin: 0; font-weight: 500;">Meta Quest 3</label>
                         <label class="toggle-switch"><input type="checkbox" id="toggle-vr"><span class="toggle-slider"></span></label>
                     </div>
                     <div class="form-group mb-10" style="display: flex; justify-content: space-between; align-items: center;">
-                        <label style="margin: 0; font-weight: 500;">Smart Glasses</label>
+                        <label style="margin: 0; font-weight: 500;">Meta Quest 3S</label>
+                        <label class="toggle-switch"><input type="checkbox" id="toggle-vr3s"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="form-group mb-10" style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="margin: 0; font-weight: 500;">Ray-Ban Meta</label>
                         <label class="toggle-switch"><input type="checkbox" id="toggle-glasses"><span class="toggle-slider"></span></label>
                     </div>
                     <div class="form-group mb-10" style="display: flex; justify-content: space-between; align-items: center;">

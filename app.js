@@ -32,6 +32,14 @@ const logicTreeNodes = {
     glasses_audio: { question: "Is the audio completely silent, or distorted/muffled?", options: [ { label: "Completely Silent", resolution: "Check phone volume and ensure audio is routing to the glasses. If yes and still silent, RMA required.", type: "error" }, { label: "Distorted / Muffled", resolution: "Clean the speaker grilles on the arms. If distortion persists at all volumes, speaker is blown. RMA required.", type: "error" } ] }
 };
 
+const deviceMappings = {
+    'vr': 'Meta Quest 3',
+    'vr3s': 'Meta Quest 3S',
+    'glasses': 'Ray-Ban Meta',
+    'tablet': 'Samsung Tablet',
+    'demo': 'Samsung Demo Device'
+};
+
 const app = {
     logDeviceHealth: function(sn, status, eventType) {
         if (!sn || sn === 'Cleared' || sn === 'Unknown') return;
@@ -178,8 +186,8 @@ const app = {
         loadDashboardState: function() {
             const sns = app.auth.currentUser.sns || {};
             const statuses = app.auth.currentUser.statuses || {};
-            const toggles = app.auth.currentUser.toggles || { vr: true, glasses: true, tablet: true, demo: true };
-            const keys = ['vr', 'glasses', 'tablet', 'demo'];
+            const toggles = app.auth.currentUser.toggles || { vr: true, vr3s: true, glasses: true, tablet: true, demo: true };
+            const keys = ['vr', 'vr3s', 'glasses', 'tablet', 'demo'];
             
             keys.forEach(k => {
                 const span = document.getElementById(`sn-display-${k}`);
@@ -285,8 +293,9 @@ const app = {
         },
 
         openCustomizeModal: function() {
-            const toggles = app.auth.currentUser.toggles || { vr: true, glasses: true, tablet: true, demo: true };
+            const toggles = app.auth.currentUser.toggles || { vr: true, vr3s: true, glasses: true, tablet: true, demo: true };
             document.getElementById('toggle-vr').checked = toggles.vr !== false;
+            document.getElementById('toggle-vr3s').checked = toggles.vr3s !== false;
             document.getElementById('toggle-glasses').checked = toggles.glasses !== false;
             document.getElementById('toggle-tablet').checked = toggles.tablet !== false;
             document.getElementById('toggle-demo').checked = toggles.demo !== false;
@@ -450,7 +459,26 @@ const app = {
         reset: function() {
             this.data = { deviceType: null, photoAttached: false, requirePhoto: false, resolutionText: null, resolutionType: null };
             const deviceSelect = document.getElementById('diagnostic-device-select');
-            if (deviceSelect) deviceSelect.value = "";
+            if (deviceSelect) {
+                let optionsHtml = '<option value="">Select a device...</option>';
+                if (app.auth.currentUser) {
+                    const toggles = app.auth.currentUser.toggles || {};
+                    const dynDevices = app.auth.currentUser.dynamicDevices || [];
+                    
+                    for (const [key, name] of Object.entries(deviceMappings)) {
+                        if (toggles[key] !== false) {
+                            optionsHtml += `<option value="${name}">${name}</option>`;
+                        }
+                    }
+                    dynDevices.forEach(d => {
+                        if (toggles[d.key] !== false) {
+                            optionsHtml += `<option value="${d.model}">${d.model}</option>`;
+                        }
+                    });
+                }
+                deviceSelect.innerHTML = optionsHtml;
+                deviceSelect.value = "";
+            }
             document.getElementById('sn-error').textContent = "";
             document.getElementById('upload-preview').innerHTML = "";
             document.querySelector('.upload-zone span').innerText = "Tap to Upload Photo";
@@ -485,8 +513,20 @@ const app = {
             // Find SN and push to device_health_logs
             let sn = 'Unknown';
             if (app.auth.currentUser && app.auth.currentUser.sns) {
-                if (this.data.deviceType === 'VR Headset') sn = app.auth.currentUser.sns['vr'] || 'Unknown';
-                else if (this.data.deviceType === 'Smart Glasses') sn = app.auth.currentUser.sns['glasses'] || 'Unknown';
+                // Look up by finding the key in deviceMappings that matches deviceType
+                for (const [key, name] of Object.entries(deviceMappings)) {
+                    if (name === this.data.deviceType) {
+                        sn = app.auth.currentUser.sns[key] || 'Unknown';
+                        break;
+                    }
+                }
+                if (sn === 'Unknown' && app.auth.currentUser.dynamicDevices) {
+                    app.auth.currentUser.dynamicDevices.forEach(d => {
+                        if (d.model === this.data.deviceType) {
+                            sn = app.auth.currentUser.sns[d.key] || 'Unknown';
+                        }
+                    });
+                }
             }
             app.logDeviceHealth(sn, reportStatus, eventType);
 
