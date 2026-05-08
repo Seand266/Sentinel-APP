@@ -11,8 +11,8 @@ const logicTreeNodes = {
     power_cable: { question: "Try a different USB-C cable and power brick. Does it charge now?", options: [ { label: "Yes", resolution: "Issue Resolved. Replace the defective charging cable/brick.", type: "success" }, { label: "No", next: "rma_dead", icon: "ph-x" } ] },
     network_1: { question: "Go to Settings > Network. Can the device see available Wi-Fi networks?", options: [ { label: "Yes", next: "network_forget", icon: "ph-wifi-high" }, { label: "No", resolution: "Hardware Wi-Fi failure detected. Prepare device for RMA.", type: "error" } ] },
     network_forget: { question: "Select 'Forget Network' and reconnect. Did it connect successfully?", options: [ { label: "Yes", resolution: "Issue Resolved. Network credentials refreshed.", type: "success" }, { label: "No", resolution: "Escalate to Tier 2 Network Support to verify MAC address whitelisting.", type: "warning" } ] },
-    physical: { question: "What type of physical damage has occurred?", options: [ { label: "Cracked Screen/Lens", resolution: "RMA Required: Cracked Lens. Capture a photo of the damage.", type: "error", requirePhoto: true }, { label: "Broken Strap/Hinge", resolution: "RMA Required: Structural Damage. Capture a photo.", type: "error", requirePhoto: true }, { label: "Water Damage", resolution: "RMA Required: Liquid Damage. Capture a photo of the indicators.", type: "error", requirePhoto: true } ] },
-    rma_dead: { resolution: "Unrecoverable hardware failure (No Power/Boot). Prepare device for RMA. Please capture a photo of the device serial number.", type: "error", requirePhoto: true },
+    physical: { question: "What type of physical damage has occurred?", options: [ { label: "Cracked Screen/Lens", resolution: "RMA Required: Cracked Lens.", type: "error" }, { label: "Broken Strap/Hinge", resolution: "RMA Required: Structural Damage.", type: "error" }, { label: "Water Damage", resolution: "RMA Required: Liquid Damage.", type: "error" } ] },
+    rma_dead: { resolution: "Unrecoverable hardware failure (No Power/Boot). Prepare device for RMA.", type: "error" },
 
     // --- Smart Glasses Tree ---
     glasses_start: { question: "What is the primary issue with the Ray-Ban Meta Smart Glasses?", options: [ { label: "Won't Turn On / Power", next: "glasses_power", icon: "ph-power" }, { label: "Bluetooth / Pairing Issues", next: "glasses_bt", icon: "ph-bluetooth-connected" }, { label: "Meta AI Not Responding", next: "glasses_ai", icon: "ph-chat-circle-dots" }, { label: "Camera / Audio Issues", next: "glasses_media", icon: "ph-camera" }, { label: "Physical Damage", next: "physical", icon: "ph-hammer" } ] },
@@ -32,7 +32,7 @@ const logicTreeNodes = {
     
     // --- Samsung Tablet Tree ---
     tablet_start: { question: "What is the primary issue with the Samsung Device?", options: [ { label: "Screen / Touch Issue", next: "tablet_screen", icon: "ph-device-tablet" }, { label: "Battery / Power", next: "power_1", icon: "ph-battery-warning" }, { label: "App / Software Freeze", next: "hard_reboot", icon: "ph-app-window" }, { label: "Network Connection", next: "network_1", icon: "ph-wifi-slash" }, { label: "Physical Damage", next: "physical", icon: "ph-hammer" } ] },
-    tablet_screen: { question: "Is the screen physically cracked or just unresponsive to touch?", options: [ { label: "Cracked", resolution: "RMA Required: Cracked Screen. Capture a photo.", type: "error", requirePhoto: true }, { label: "Unresponsive", next: "hard_reboot", icon: "ph-hand-pointing" } ] }
+    tablet_screen: { question: "Is the screen physically cracked or just unresponsive to touch?", options: [ { label: "Cracked", resolution: "RMA Required: Cracked Screen.", type: "error" }, { label: "Unresponsive", next: "hard_reboot", icon: "ph-hand-pointing" } ] }
 };
 
 const deviceMappings = {
@@ -429,18 +429,17 @@ const app = {
             const container = document.getElementById('logic-tree-container');
             let html = `<div class="logic-node"><div class="logic-question">${node.question}</div><div class="options-grid multi">`;
             node.options.forEach(opt => {
-                const action = opt.next ? `app.intake.loadNode('${opt.next}')` : `app.intake.showResolutionFromOption('${opt.resolution}', '${opt.type || 'success'}', ${opt.requirePhoto || false})`;
+                const action = opt.next ? `app.intake.loadNode('${opt.next}')` : `app.intake.showResolutionFromOption('${opt.resolution}', '${opt.type || 'success'}')`;
                 html += `<div class="option-card" onclick="${action}"><i class="ph ${opt.icon || 'ph-arrow-right'}"></i><span>${opt.label}</span></div>`;
             });
             html += `</div></div>`;
             container.innerHTML = html;
             this._goToStep('step-logic');
         },
-        showResolutionFromOption: function(resolutionText, type, requirePhoto) { this.showResolution({ resolution: resolutionText, type: type, requirePhoto: requirePhoto }); },
+        showResolutionFromOption: function(resolutionText, type) { this.showResolution({ resolution: resolutionText, type: type }); },
         showResolution: function(nodeData) {
             const resTitle = document.getElementById('resolution-title');
             const resContent = document.getElementById('resolution-content');
-            const photoSection = document.getElementById('photo-upload-section');
             resTitle.innerText = "Resolution / Next Steps";
             resContent.innerHTML = `<strong>Action:</strong> ${nodeData.resolution}`;
             
@@ -450,26 +449,11 @@ const app = {
 
             resContent.className = 'resolution-box';
             if (nodeData.type === 'error') resContent.classList.add('error');
-            if (nodeData.requirePhoto) photoSection.classList.remove('hidden');
-            else photoSection.classList.add('hidden');
-            this.data.requirePhoto = nodeData.requirePhoto;
             this.data.resolutionText = nodeData.resolution;
             this.data.resolutionType = nodeData.type || 'success';
             this._goToStep('step-resolution');
         },
-        handleFileUpload: function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                this.data.photoAttached = true;
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const preview = document.getElementById('upload-preview');
-                    preview.innerHTML = `<img src="${e.target.result}" alt="Photo Evidence" />`;
-                    document.querySelector('.upload-zone span').innerText = "Photo Uploaded Successfully";
-                }
-                reader.readAsDataURL(file);
-            }
-        },
+
         populateDeviceSelect: function() {
             const deviceSelect = document.getElementById('diagnostic-device-select');
             if (!deviceSelect) return;
@@ -492,16 +476,13 @@ const app = {
             deviceSelect.innerHTML = optionsHtml;
         },
         reset: function() {
-            this.data = { deviceType: null, photoAttached: false, requirePhoto: false, resolutionText: null, resolutionType: null };
+            this.data = { deviceType: null, resolutionText: null, resolutionType: null };
             const deviceSelect = document.getElementById('diagnostic-device-select');
             if (deviceSelect) deviceSelect.value = "";
             document.getElementById('sn-error').textContent = "";
-            document.getElementById('upload-preview').innerHTML = "";
-            document.querySelector('.upload-zone span').innerText = "Tap to Upload Photo";
             this._goToStep('step-sn');
         },
         complete: function() {
-            if (this.data.requirePhoto && !this.data.photoAttached) { alert("Please upload the required photo documentation before completing."); return; }
             
             const repName = app.auth.currentUser ? `${app.auth.currentUser.first} ${app.auth.currentUser.last}` : "Unknown Rep";
             let reportStatus = 'Resolved Locally';
@@ -522,8 +503,7 @@ const app = {
                 device: this.data.deviceType || 'Unknown Device',
                 model: 'Diagnostic Run',
                 status: reportStatus,
-                notes: `Diagnostic Wizard Completed. Resolution: ${this.data.resolutionText}`,
-                photoAttached: this.data.photoAttached
+                notes: `Diagnostic Wizard Completed. Resolution: ${this.data.resolutionText}`
             });
 
             // Find SN and push to device_health_logs

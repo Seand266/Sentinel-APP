@@ -215,17 +215,6 @@
                         <div class="wizard-step" id="step-resolution">
                             <h3 id="resolution-title">Final Resolution</h3>
                             <div class="resolution-box" id="resolution-content"></div>
-                            
-                            <div id="photo-upload-section" class="hidden">
-                                <h4>Visual Verification</h4>
-                                <p>Please upload a photo of the issue for documentation.</p>
-                                <div class="upload-zone" onclick="document.getElementById('file-upload').click()">
-                                    <i class="ph ph-camera"></i>
-                                    <span>Tap to Upload Photo</span>
-                                    <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="app.intake.handleFileUpload(event)">
-                                </div>
-                                <div id="upload-preview"></div>
-                            </div>
 
                             <div class="wizard-actions">
                                 <button class="btn secondary" onclick="app.intake.reset()">Start Over</button>
