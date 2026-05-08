@@ -17,6 +17,7 @@ const adminApp = {
     currentData: [],
     usersCache: {},
     reportsCache: [],
+    diagCache: [],
     requestsCache: [],
 
     switchTab: function(tab) {
@@ -126,12 +127,18 @@ const adminApp = {
 
         // Real-time listener for reports
         db.collection('reports').onSnapshot((snapshot) => {
-            const reports = [];
-            snapshot.forEach(doc => reports.push({ id: doc.id, ...doc.data() }));
-            this.reportsCache = reports.sort((a, b) => new Date(b.date) - new Date(a.date));
-            this.currentData = [...this.reportsCache].sort((a, b) => new Date(b.date) - new Date(a.date));
-            this.renderTable(this.currentData);
-            this.updateStats(this.currentData);
+            const allReports = [];
+            snapshot.forEach(doc => allReports.push({ id: doc.id, ...doc.data() }));
+            
+            const standardReports = allReports.filter(r => r.model !== 'Diagnostic Run');
+            const diagReports = allReports.filter(r => r.model === 'Diagnostic Run');
+
+            this.reportsCache = standardReports.sort((a, b) => new Date(b.date) - new Date(a.date));
+            this.diagCache = diagReports.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            this.renderTable(this.reportsCache, 'reports-table');
+            this.renderTable(this.diagCache, 'diagnostics-table');
+            this.updateStats(allReports);
         });
 
         // Real-time listener for credential requests
@@ -381,8 +388,8 @@ const adminApp = {
         document.getElementById('stat-broken').innerText = stats.broken;
     },
 
-    renderTable: function(data) {
-        const tbody = document.querySelector('#reports-table tbody');
+    renderTable: function(data, tableId) {
+        const tbody = document.querySelector(`#${tableId} tbody`);
         let html = '';
 
         if (data.length === 0) {
@@ -443,7 +450,7 @@ const adminApp = {
     filterTable: function() {
         const query = document.getElementById('search-input').value.toLowerCase();
         
-        const filtered = this.currentData.filter(row => {
+        const filtered = this.reportsCache.filter(row => {
             return (
                 row.repId.toLowerCase().includes(query) ||
                 row.device.toLowerCase().includes(query) ||
@@ -451,7 +458,21 @@ const adminApp = {
             );
         });
 
-        this.renderTable(filtered);
+        this.renderTable(filtered, 'reports-table');
+    },
+
+    filterDiagTable: function() {
+        const query = document.getElementById('diag-search-input').value.toLowerCase();
+        
+        const filtered = this.diagCache.filter(row => {
+            return (
+                row.repId.toLowerCase().includes(query) ||
+                row.device.toLowerCase().includes(query) ||
+                row.status.toLowerCase().includes(query)
+            );
+        });
+
+        this.renderTable(filtered, 'diagnostics-table');
     },
 
     searchDeviceHistory: async function() {
