@@ -253,6 +253,8 @@ const app = {
                 `;
                 grid.insertAdjacentHTML('beforeend', cardHtml);
             });
+            
+            app.intake.populateDeviceSelect();
         },
 
         editSN: function(key, deviceName) {
@@ -339,6 +341,7 @@ const app = {
         saveCustomizations: function() {
             app.auth.currentUser.toggles = {
                 vr: document.getElementById('toggle-vr').checked,
+                vr3s: document.getElementById('toggle-vr3s').checked,
                 glasses: document.getElementById('toggle-glasses').checked,
                 tablet: document.getElementById('toggle-tablet').checked,
                 demo: document.getElementById('toggle-demo').checked
@@ -462,29 +465,31 @@ const app = {
                 reader.readAsDataURL(file);
             }
         },
+        populateDeviceSelect: function() {
+            const deviceSelect = document.getElementById('diagnostic-device-select');
+            if (!deviceSelect) return;
+            let optionsHtml = '<option value="">Select a device...</option>';
+            if (app.auth.currentUser) {
+                const toggles = app.auth.currentUser.toggles || {};
+                const dynDevices = app.auth.currentUser.dynamicDevices || [];
+                
+                for (const [key, name] of Object.entries(deviceMappings)) {
+                    if (toggles[key] !== false) {
+                        optionsHtml += `<option value="${name}">${name}</option>`;
+                    }
+                }
+                dynDevices.forEach(d => {
+                    if (toggles[d.key] !== false) {
+                        optionsHtml += `<option value="${d.model}">${d.model}</option>`;
+                    }
+                });
+            }
+            deviceSelect.innerHTML = optionsHtml;
+        },
         reset: function() {
             this.data = { deviceType: null, photoAttached: false, requirePhoto: false, resolutionText: null, resolutionType: null };
             const deviceSelect = document.getElementById('diagnostic-device-select');
-            if (deviceSelect) {
-                let optionsHtml = '<option value="">Select a device...</option>';
-                if (app.auth.currentUser) {
-                    const toggles = app.auth.currentUser.toggles || {};
-                    const dynDevices = app.auth.currentUser.dynamicDevices || [];
-                    
-                    for (const [key, name] of Object.entries(deviceMappings)) {
-                        if (toggles[key] !== false) {
-                            optionsHtml += `<option value="${name}">${name}</option>`;
-                        }
-                    }
-                    dynDevices.forEach(d => {
-                        if (toggles[d.key] !== false) {
-                            optionsHtml += `<option value="${d.model}">${d.model}</option>`;
-                        }
-                    });
-                }
-                deviceSelect.innerHTML = optionsHtml;
-                deviceSelect.value = "";
-            }
+            if (deviceSelect) deviceSelect.value = "";
             document.getElementById('sn-error').textContent = "";
             document.getElementById('upload-preview').innerHTML = "";
             document.querySelector('.upload-zone span').innerText = "Tap to Upload Photo";
