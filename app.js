@@ -1,7 +1,7 @@
 // SENTINEL - Main Application Logic
 
 const logicTreeNodes = {
-    start: { question: "What is the primary issue with the VR Headset?", options: [ { label: "Software Freeze / Unresponsive", next: "freeze_1", icon: "ph-snowflake" }, { label: "Won't Turn On / Power", next: "power_1", icon: "ph-power" }, { label: "Network Connection", next: "network_1", icon: "ph-wifi-slash" }, { label: "Physical Damage", next: "physical", icon: "ph-hammer" } ] },
+    start: { question: "What is the primary issue with the Meta Quest headset?", options: [ { label: "Software Freeze / Unresponsive", next: "freeze_1", icon: "ph-snowflake" }, { label: "Won't Turn On / Power", next: "power_1", icon: "ph-power" }, { label: "Network Connection", next: "network_1", icon: "ph-wifi-slash" }, { label: "Physical Damage", next: "physical", icon: "ph-hammer" } ] },
     freeze_1: { question: "Does the device respond to the physical power button?", options: [ { label: "Yes, screen turns on", next: "freeze_yes", icon: "ph-check" }, { label: "No, completely unresponsive", next: "freeze_no", icon: "ph-x" } ] },
     freeze_yes: { question: "Is the device stuck on the boot logo, or is an app frozen?", options: [ { label: "Stuck on Boot Logo", next: "factory_reset", icon: "ph-arrows-clockwise" }, { label: "App is frozen", next: "hard_reboot", icon: "ph-app-window" } ] },
     freeze_no: { question: "Hold the Power button and Volume Down simultaneously for 30 seconds. Did the device reboot?", options: [ { label: "Yes, it rebooted", resolution: "Issue Resolved. The hard reset cleared the frozen state.", type: "success" }, { label: "No, still unresponsive", next: "rma_dead", icon: "ph-x" } ] },
@@ -29,7 +29,11 @@ const logicTreeNodes = {
     glasses_ai_mic: { question: "Is the physical privacy power switch on the left arm engaged (showing red)?", options: [ { label: "Yes, it shows red", resolution: "Slide switch forward to enable microphones and cameras. Issue Resolved.", type: "success" }, { label: "No, it is pushed forward", resolution: "Microphone hardware failure or software bug. Escalate for deep diagnostic.", type: "warning" } ] },
     glasses_media: { question: "Is the issue with capturing Photos/Videos, or with Audio Playback?", options: [ { label: "Photos / Videos", next: "glasses_camera", icon: "ph-camera" }, { label: "Audio Playback", next: "glasses_audio", icon: "ph-speaker-high" } ] },
     glasses_camera: { question: "Is the capture LED on the front right blocked, or is the internal storage full?", options: [ { label: "Storage is full", resolution: "Import existing media to your phone and clear glasses storage. Issue Resolved.", type: "success" }, { label: "Capture LED is blocked", resolution: "Clean the front camera and LED area. The glasses will NOT record if the privacy LED is blocked. Issue Resolved.", type: "success" }, { label: "Neither", next: "glasses_factory_reset", icon: "ph-arrows-clockwise" } ] },
-    glasses_audio: { question: "Is the audio completely silent, or distorted/muffled?", options: [ { label: "Completely Silent", resolution: "Check phone volume and ensure audio is routing to the glasses. If yes and still silent, RMA required.", type: "error" }, { label: "Distorted / Muffled", resolution: "Clean the speaker grilles on the arms. If distortion persists at all volumes, speaker is blown. RMA required.", type: "error" } ] }
+    glasses_audio: { question: "Is the audio completely silent, or distorted/muffled?", options: [ { label: "Completely Silent", resolution: "Check phone volume and ensure audio is routing to the glasses. If yes and still silent, RMA required.", type: "error" }, { label: "Distorted / Muffled", resolution: "Clean the speaker grilles on the arms. If distortion persists at all volumes, speaker is blown. RMA required.", type: "error" } ] },
+    
+    // --- Samsung Tablet Tree ---
+    tablet_start: { question: "What is the primary issue with the Samsung Device?", options: [ { label: "Screen / Touch Issue", next: "tablet_screen", icon: "ph-device-tablet" }, { label: "Battery / Power", next: "power_1", icon: "ph-battery-warning" }, { label: "App / Software Freeze", next: "hard_reboot", icon: "ph-app-window" }, { label: "Network Connection", next: "network_1", icon: "ph-wifi-slash" }, { label: "Physical Damage", next: "physical", icon: "ph-hammer" } ] },
+    tablet_screen: { question: "Is the screen physically cracked or just unresponsive to touch?", options: [ { label: "Cracked", resolution: "RMA Required: Cracked Screen. Capture a photo.", type: "error", requirePhoto: true }, { label: "Unresponsive", next: "hard_reboot", icon: "ph-hand-pointing" } ] }
 };
 
 const deviceMappings = {
@@ -411,10 +415,12 @@ const app = {
             errorEl.textContent = "";
             this.data.deviceType = deviceSelect;
             
-            if (deviceSelect === 'Smart Glasses') {
-                this.loadNode('glasses_start');
-            } else {
+            if (deviceSelect.includes('Samsung')) {
+                this.loadNode('tablet_start');
+            } else if (deviceSelect.includes('Meta Quest')) {
                 this.loadNode('start');
+            } else {
+                this.loadNode('glasses_start');
             }
         },
         loadNode: function(nodeId) {
