@@ -239,14 +239,14 @@ const app = {
                         <div class="device-header">
                             <i class="ph ph-sunglasses"></i>
                             <div>
-                                <h3>Smart Glasses</h3>
-                                <p>${device.model} <br><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('${device.key}', '${device.model}')" id="sn-display-${device.key}">${sn}</span></p>
+                                <h3>${device.model}</h3>
+                                <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('${device.key}', '${device.model}')" id="sn-display-${device.key}">${sn}</span></p>
                             </div>
                         </div>
                         <div class="device-status">
                             <span class="status-indicator ${statusClass}" id="status-${device.key}">${status}</span>
                         </div>
-                        <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Smart Glasses', '${device.model}', 'status-${device.key}')">
+                        <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('${device.model}', '${device.model}', 'status-${device.key}')">
                             Report Status
                         </button>
                     </div>
