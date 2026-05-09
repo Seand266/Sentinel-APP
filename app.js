@@ -94,8 +94,7 @@ const app = {
             }
 
             let toggles = {};
-            if (retailer === 'Best Buy') toggles = { vr: true, vr3s: false, glasses: true, tablet: true, demo: true };
-            else if (retailer === 'Target') toggles = { vr: false, vr3s: true, glasses: true, tablet: true, demo: true };
+            if (retailer === 'Best Buy' || retailer === 'Best Buy CA') toggles = { vr: true, vr3s: false, glasses: true, tablet: true, demo: true };
             else if (retailer === 'NFM') toggles = { vr: true, vr3s: false, glasses: false, tablet: true, demo: false };
 
             try {
@@ -508,11 +507,13 @@ const app = {
 
             // Find SN and push to device_health_logs
             let sn = 'Unknown';
+            let deviceKey = null;
             if (app.auth.currentUser && app.auth.currentUser.sns) {
                 // Look up by finding the key in deviceMappings that matches deviceType
                 for (const [key, name] of Object.entries(deviceMappings)) {
                     if (name === this.data.deviceType) {
                         sn = app.auth.currentUser.sns[key] || 'Unknown';
+                        deviceKey = key;
                         break;
                     }
                 }
@@ -520,10 +521,24 @@ const app = {
                     app.auth.currentUser.dynamicDevices.forEach(d => {
                         if (d.model === this.data.deviceType) {
                             sn = app.auth.currentUser.sns[d.key] || 'Unknown';
+                            deviceKey = d.key;
                         }
                     });
                 }
             }
+
+            if (deviceKey && app.auth.currentUser) {
+                if (!app.auth.currentUser.statuses) app.auth.currentUser.statuses = {};
+                if (this.data.resolutionType === 'error') {
+                    app.auth.currentUser.statuses[deviceKey] = 'Broken/Unusable';
+                } else if (this.data.resolutionType === 'warning') {
+                    app.auth.currentUser.statuses[deviceKey] = 'Having Issues';
+                } else {
+                    app.auth.currentUser.statuses[deviceKey] = 'Operational';
+                }
+                app.auth._saveCurrentUser();
+            }
+
             app.logDeviceHealth(sn, reportStatus, eventType);
 
             alert(`Diagnostic Logged!\nStatus: ${reportStatus}\nSuccessfully submitted to Admin Dashboard.`);
