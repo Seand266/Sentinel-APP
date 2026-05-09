@@ -545,6 +545,7 @@ const app = {
 
             alert(`Diagnostic Logged!\nStatus: ${reportStatus}\nSuccessfully submitted to Admin Dashboard.`);
             this.reset();
+            app.dashboard.loadDashboardState();
             app.nav.goTo('dashboard');
         },
         _goToStep: function(stepId) {
