@@ -508,23 +508,25 @@ const app = {
             // Find SN and push to device_health_logs
             let sn = 'Unknown';
             let deviceKey = null;
-            if (app.auth.currentUser && app.auth.currentUser.sns) {
-                // Look up by finding the key in deviceMappings that matches deviceType
-                for (const [key, name] of Object.entries(deviceMappings)) {
-                    if (name === this.data.deviceType) {
-                        sn = app.auth.currentUser.sns[key] || 'Unknown';
-                        deviceKey = key;
-                        break;
+            
+            // Look up deviceKey from mappings
+            for (const [key, name] of Object.entries(deviceMappings)) {
+                if (name === this.data.deviceType) {
+                    deviceKey = key;
+                    break;
+                }
+            }
+            if (!deviceKey && app.auth.currentUser && app.auth.currentUser.dynamicDevices) {
+                app.auth.currentUser.dynamicDevices.forEach(d => {
+                    if (d.model === this.data.deviceType) {
+                        deviceKey = d.key;
                     }
-                }
-                if (sn === 'Unknown' && app.auth.currentUser.dynamicDevices) {
-                    app.auth.currentUser.dynamicDevices.forEach(d => {
-                        if (d.model === this.data.deviceType) {
-                            sn = app.auth.currentUser.sns[d.key] || 'Unknown';
-                            deviceKey = d.key;
-                        }
-                    });
-                }
+                });
+            }
+
+            // If user has saved serial numbers, get it
+            if (deviceKey && app.auth.currentUser && app.auth.currentUser.sns) {
+                sn = app.auth.currentUser.sns[deviceKey] || 'Unknown';
             }
 
             if (deviceKey && app.auth.currentUser) {
