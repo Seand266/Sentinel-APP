@@ -160,7 +160,6 @@ const adminApp = {
 
             this.renderTable(this.reportsCache, 'reports-table');
             this.renderTable(this.diagCache, 'diagnostics-table');
-            this.updateStats(allReports);
         });
 
         // Real-time listener for credential requests
@@ -471,18 +470,6 @@ const adminApp = {
         }
     },
 
-    updateStats: function(data) {
-        const stats = { operational: 0, issues: 0, broken: 0 };
-        data.forEach(r => {
-            if (r.status === 'Operational') stats.operational++;
-            else if (r.status === 'Having Issues') stats.issues++;
-            else stats.broken++;
-        });
-        document.getElementById('stat-online').innerText = stats.operational;
-        document.getElementById('stat-issues').innerText = stats.issues;
-        document.getElementById('stat-broken').innerText = stats.broken;
-    },
-
     renderTable: function(data, tableId) {
         const tbody = document.querySelector(`#${tableId} tbody`);
         let html = '';
@@ -708,6 +695,11 @@ const adminApp = {
                 });
             }
         });
+
+        // Update the Global Stats cards in the dashboard
+        document.getElementById('stat-online').innerText = totalOp;
+        document.getElementById('stat-issues').innerText = totalIssue;
+        document.getElementById('stat-broken').innerText = totalBroken;
 
         // Destroy existing charts to prevent memory leaks / overlap
         if (this.healthChart) this.healthChart.destroy();
