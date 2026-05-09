@@ -111,6 +111,24 @@ const app = {
             }
         },
 
+        resetPassword: async function() {
+            const email = document.getElementById('login-email').value.trim().toLowerCase();
+            const errorEl = document.getElementById('auth-error');
+            if (!email) {
+                errorEl.innerText = "Please enter your email address above first to reset your password.";
+                errorEl.style.color = 'var(--danger)';
+                return;
+            }
+            try {
+                await auth.sendPasswordResetEmail(email);
+                errorEl.innerText = "Password reset email sent! Please check your inbox.";
+                errorEl.style.color = 'var(--success)';
+            } catch (err) {
+                errorEl.innerText = "Error: " + err.message;
+                errorEl.style.color = 'var(--danger)';
+            }
+        },
+
         login: async function() {
             const email = document.getElementById('login-email').value.trim().toLowerCase();
             const pass = document.getElementById('login-pass').value;

@@ -47,6 +47,9 @@
                     </div>
                     <div class="form-group mb-20">
                         <input type="password" id="login-pass" placeholder="Password">
+                        <div style="text-align: right; margin-top: 8px;">
+                            <a href="#" onclick="adminApp.resetPassword(); return false;" style="color: var(--primary); font-size: 13px; text-decoration: none;">Forgot Password?</a>
+                        </div>
                     </div>
                     <button class="btn primary full-width" onclick="adminApp.login()">Secure Login <i class="ph ph-lock-key-open"></i></button>
                 </div>
