@@ -66,13 +66,16 @@ const adminApp = {
         const email = document.getElementById('login-email').value.trim().toLowerCase();
         const errorEl = document.getElementById('auth-error');
         if (!email) {
-            errorEl.innerText = "Please enter your email address above first to reset your password.";
+            errorEl.innerText = "Please enter your email address above first to request a reset.";
             errorEl.style.color = 'var(--danger)';
             return;
         }
         try {
-            await auth.sendPasswordResetEmail(email);
-            errorEl.innerText = "Password reset email sent! Please check your inbox.";
+            await db.collection('reset_requests').add({
+                email: email,
+                date: new Date().toISOString()
+            });
+            errorEl.innerText = "Account reset request sent! Please wait for an Admin to clear your account before trying to sign up again.";
             errorEl.style.color = 'var(--success)';
         } catch (err) {
             errorEl.innerText = "Error: " + err.message;
@@ -166,6 +169,14 @@ const adminApp = {
             snapshot.forEach(doc => requests.push({ id: doc.id, ...doc.data() }));
             this.requestsCache = requests.sort((a, b) => new Date(b.date) - new Date(a.date));
             this.loadRequests();
+        });
+
+        // Real-time listener for reset requests
+        db.collection('reset_requests').onSnapshot((snapshot) => {
+            const resets = [];
+            snapshot.forEach(doc => resets.push({ id: doc.id, ...doc.data() }));
+            this.resetsCache = resets.sort((a, b) => new Date(b.date) - new Date(a.date));
+            this.loadResets();
         });
     },
 
@@ -416,6 +427,47 @@ const adminApp = {
                 await db.collection('credential_requests').doc(req.id).delete();
             });
             // The onSnapshot listener will automatically reload the requests
+        }
+    },
+
+    loadResets: function() {
+        const resets = this.resetsCache || [];
+        const tbody = document.querySelector('#resets-table tbody');
+        let html = '';
+
+        if (resets.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;" class="text-muted">No pending account resets.</td></tr>';
+            return;
+        }
+
+        resets.forEach(row => {
+            const d = new Date(row.date);
+            const dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+            
+            html += `
+                <tr>
+                    <td class="text-muted">${dateStr}</td>
+                    <td style="font-weight: 500;">${row.email}</td>
+                    <td>
+                        <button class="btn" style="background: transparent; color: var(--success); border: 1px solid var(--success); font-size: 12px; padding: 6px 12px;" onclick="adminApp.resolveResetRequest('${row.id}', '${row.email}')">
+                            <i class="ph ph-check-circle"></i> Clear Account Data & Resolve
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    },
+
+    resolveResetRequest: async function(requestId, email) {
+        if(confirm(`IMPORTANT: Have you already deleted ${email} from the Firebase Authentication console?\n\nIf yes, click OK to wipe their database profile and clear this ticket.`)) {
+            try {
+                await db.collection('users').doc(email).delete();
+                await db.collection('reset_requests').doc(requestId).delete();
+            } catch(e) {
+                alert("Failed to resolve request: " + e.message);
+            }
         }
     },
 

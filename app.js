@@ -115,13 +115,16 @@ const app = {
             const email = document.getElementById('login-email').value.trim().toLowerCase();
             const errorEl = document.getElementById('auth-error');
             if (!email) {
-                errorEl.innerText = "Please enter your email address above first to reset your password.";
+                errorEl.innerText = "Please enter your email address above first to request a reset.";
                 errorEl.style.color = 'var(--danger)';
                 return;
             }
             try {
-                await auth.sendPasswordResetEmail(email);
-                errorEl.innerText = "Password reset email sent! Please check your inbox.";
+                await db.collection('reset_requests').add({
+                    email: email,
+                    date: new Date().toISOString()
+                });
+                errorEl.innerText = "Account reset request sent! Please wait for an Admin to clear your account before trying to sign up again.";
                 errorEl.style.color = 'var(--success)';
             } catch (err) {
                 errorEl.innerText = "Error: " + err.message;

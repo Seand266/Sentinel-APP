@@ -48,7 +48,7 @@
                     <div class="form-group mb-20">
                         <input type="password" id="login-pass" placeholder="Password">
                         <div style="text-align: right; margin-top: 8px;">
-                            <a href="#" onclick="adminApp.resetPassword(); return false;" style="color: var(--primary); font-size: 13px; text-decoration: none;">Forgot Password?</a>
+                            <a href="#" onclick="adminApp.resetPassword(); return false;" style="color: var(--primary); font-size: 13px; text-decoration: none;">Request Account Reset</a>
                         </div>
                     </div>
                     <button class="btn primary full-width" onclick="adminApp.login()">Secure Login <i class="ph ph-lock-key-open"></i></button>
@@ -257,6 +257,30 @@
                                         <th>Representative</th>
                                         <th>Target System</th>
                                         <th>Reason</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by admin.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Reset Requests Table -->
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="font-size: 16px; margin: 0; color: var(--danger);">Pending Account Resets</h3>
+                                <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;">Warning: You must manually delete the user's Authentication account in the Firebase Console before resolving.</p>
+                            </div>
+                        </div>
+                        <div class="data-table-container" style="margin-bottom: 0;">
+                            <table id="resets-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date Requested</th>
+                                        <th>Target Email Account</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
