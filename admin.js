@@ -421,7 +421,7 @@ const adminApp = {
             if (!fullNotes) fullNotes = '<i>No additional notes provided.</i>';
 
             const summaryText = row.notes || row.resolution || 'View details';
-            const rowId = `report-row-${idx}`;
+            const rowId = `${tableId}-row-${idx}`;
 
             html += `
                 <tr style="cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--surface-hover)'" onmouseout="this.style.backgroundColor='transparent'" onclick="document.getElementById('${rowId}-details').style.display = document.getElementById('${rowId}-details').style.display === 'none' ? 'table-row' : 'none'">
