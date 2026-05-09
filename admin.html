@@ -14,6 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .data-table-container { width: 100%; overflow-x: auto; margin-bottom: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-surface); }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
@@ -97,7 +98,13 @@
                     </button>
                 </div>
 
-                <div class="dashboard-grid">
+                <div class="admin-tabs" style="display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                    <button class="btn primary admin-tab-btn" id="tab-btn-data" onclick="adminApp.switchAdminTab('data')"><i class="ph ph-table"></i> Data Grids</button>
+                    <button class="btn secondary admin-tab-btn" id="tab-btn-analytics" onclick="adminApp.switchAdminTab('analytics')"><i class="ph ph-chart-pie-slice"></i> Fleet Analytics</button>
+                </div>
+
+                <div id="admin-view-data">
+                    <div class="dashboard-grid">
                     <!-- Global Stats -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
                         <div class="card glass-panel" style="text-align: center; padding: 16px;">
@@ -254,6 +261,30 @@
                                     <!-- Populated by admin.js -->
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div> <!-- End of dashboard-grid -->
+                </div> <!-- End of admin-view-data -->
+
+                <div id="admin-view-analytics" style="display: none;">
+                    <div class="dashboard-grid">
+                        <div class="card glass-panel" style="padding: 24px; display: flex; flex-direction: column; align-items: center;">
+                            <h3 style="margin-bottom: 16px;">Overall Fleet Health</h3>
+                            <div style="position: relative; height: 300px; width: 100%; display: flex; justify-content: center;">
+                                <canvas id="healthPieChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card glass-panel" style="padding: 24px; display: flex; flex-direction: column; align-items: center;">
+                            <h3 style="margin-bottom: 16px;">Retailer Distribution</h3>
+                            <div style="position: relative; height: 300px; width: 100%; display: flex; justify-content: center;">
+                                <canvas id="retailerDoughnutChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card glass-panel" style="padding: 24px; grid-column: 1 / -1;">
+                            <h3 style="margin-bottom: 16px;">Device Model Breakdown</h3>
+                            <div style="position: relative; height: 350px; width: 100%;">
+                                <canvas id="modelBarChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>

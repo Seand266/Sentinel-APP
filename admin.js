@@ -123,6 +123,7 @@ const adminApp = {
             });
             this.usersCache = users;
             this.loadUsers();
+            this.updateAnalytics();
         });
 
         // Real-time listener for reports
@@ -572,8 +573,127 @@ const adminApp = {
         }
     },
 
+    switchAdminTab: function(tabId) {
+        document.querySelectorAll('.admin-tab-btn').forEach(b => {
+            b.classList.remove('primary');
+            b.classList.add('secondary');
+        });
+        document.getElementById(`tab-btn-${tabId}`).classList.remove('secondary');
+        document.getElementById(`tab-btn-${tabId}`).classList.add('primary');
+
+        document.getElementById('admin-view-data').style.display = 'none';
+        document.getElementById('admin-view-analytics').style.display = 'none';
+        
+        document.getElementById(`admin-view-${tabId}`).style.display = 'block';
+        if (tabId === 'analytics') {
+            this.updateAnalytics();
+        }
+    },
+
+    updateAnalytics: function() {
+        if (!this.usersCache || document.getElementById('admin-view-analytics').style.display === 'none') return;
+
+        let totalOp = 0, totalIssue = 0, totalBroken = 0;
+        let retailers = {};
+        
+        let models = {
+            'Meta Quest 3': { op: 0, issue: 0, broken: 0 },
+            'Meta Quest 3S': { op: 0, issue: 0, broken: 0 },
+            'Ray-Ban Meta': { op: 0, issue: 0, broken: 0 },
+            'Samsung Tablet': { op: 0, issue: 0, broken: 0 },
+            'Samsung Demo Device': { op: 0, issue: 0, broken: 0 }
+        };
+
+        Object.values(this.usersCache).forEach(u => {
+            const ret = u.retailer || 'Unassigned';
+            retailers[ret] = (retailers[ret] || 0) + 1;
+
+            const t = u.toggles || {vr: true, vr3s: true, glasses: true, tablet: true, demo: true};
+            const s = u.statuses || {};
+            
+            const checkStatus = (key, modelName) => {
+                if (t[key] !== false) {
+                    const stat = s[key] || 'Operational';
+                    if (stat === 'Operational') { totalOp++; models[modelName].op++; }
+                    else if (stat === 'Having Issues') { totalIssue++; models[modelName].issue++; }
+                    else if (stat === 'Broken/Unusable') { totalBroken++; models[modelName].broken++; }
+                }
+            };
+
+            checkStatus('vr', 'Meta Quest 3');
+            checkStatus('vr3s', 'Meta Quest 3S');
+            checkStatus('glasses', 'Ray-Ban Meta');
+            checkStatus('tablet', 'Samsung Tablet');
+            checkStatus('demo', 'Samsung Demo Device');
+
+            if (u.dynamicDevices) {
+                u.dynamicDevices.forEach(d => {
+                    if (t[d.key] !== false) {
+                        if (!models[d.model]) models[d.model] = { op: 0, issue: 0, broken: 0 };
+                        const stat = s[d.key] || 'Operational';
+                        if (stat === 'Operational') { totalOp++; models[d.model].op++; }
+                        else if (stat === 'Having Issues') { totalIssue++; models[d.model].issue++; }
+                        else if (stat === 'Broken/Unusable') { totalBroken++; models[d.model].broken++; }
+                    }
+                });
+            }
+        });
+
+        // Destroy existing charts to prevent memory leaks / overlap
+        if (this.healthChart) this.healthChart.destroy();
+        if (this.retailerChart) this.retailerChart.destroy();
+        if (this.modelChart) this.modelChart.destroy();
+
+        // 1. Health Pie Chart
+        const ctxHealth = document.getElementById('healthPieChart').getContext('2d');
+        this.healthChart = new Chart(ctxHealth, {
+            type: 'pie',
+            data: {
+                labels: ['Operational', 'Having Issues', 'Broken'],
+                datasets: [{
+                    data: [totalOp, totalIssue, totalBroken],
+                    backgroundColor: ['#10B981', '#F59E0B', '#EF4444']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // 2. Retailer Doughnut
+        const ctxRetailer = document.getElementById('retailerDoughnutChart').getContext('2d');
+        this.retailerChart = new Chart(ctxRetailer, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(retailers),
+                datasets: [{
+                    data: Object.values(retailers),
+                    backgroundColor: ['#6366F1', '#8B5CF6', '#EC4899', '#14B8A6', '#F59E0B', '#3B82F6']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // 3. Model Bar Chart
+        const ctxModel = document.getElementById('modelBarChart').getContext('2d');
+        const modelLabels = Object.keys(models);
+        this.modelChart = new Chart(ctxModel, {
+            type: 'bar',
+            data: {
+                labels: modelLabels,
+                datasets: [
+                    { label: 'Operational', data: modelLabels.map(m => models[m].op), backgroundColor: '#10B981' },
+                    { label: 'Having Issues', data: modelLabels.map(m => models[m].issue), backgroundColor: '#F59E0B' },
+                    { label: 'Broken', data: modelLabels.map(m => models[m].broken), backgroundColor: '#EF4444' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { x: { stacked: true }, y: { stacked: true } }
+            }
+        });
+    },
+
     exportToCSV: function() {
-        const users = JSON.parse(localStorage.getItem('rep_users') || "{}");
+        const users = this.usersCache || {};
         const userEmails = Object.keys(users);
         
         if (userEmails.length === 0) {
