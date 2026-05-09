@@ -116,17 +116,23 @@
 
                     <!-- Collated Data Table -->
                     <div class="card glass-panel" style="padding: 0; margin-bottom: 24px;">
-                        <div style="padding: 16px; border-bottom: 1px solid var(--border);">
-                            <h3 style="font-size: 16px; margin-bottom: 16px;">Live Representative Reports</h3>
-                            <div class="search-bar" style="margin-bottom: 0;">
-                                <i class="ph ph-magnifying-glass"></i>
-                                <input type="text" id="search-input" placeholder="Search by Rep Name or Device..." onkeyup="adminApp.filterTable()">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="font-size: 16px; margin-bottom: 16px;">Live Representative Reports</h3>
+                                <div class="search-bar" style="margin-bottom: 0; min-width: 300px;">
+                                    <i class="ph ph-magnifying-glass"></i>
+                                    <input type="text" id="search-input" placeholder="Search by Rep Name or Device..." onkeyup="adminApp.filterTable()">
+                                </div>
                             </div>
+                            <button class="btn" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 13px;" onclick="adminApp.deleteSelectedReports('reports-table')">
+                                <i class="ph ph-trash"></i> Delete Selected
+                            </button>
                         </div>
                         <div class="data-table-container">
                             <table id="reports-table">
                                 <thead>
                                     <tr>
+                                        <th style="width: 40px; text-align: center;"><input type="checkbox" onclick="adminApp.toggleSelectAll('reports-table', this.checked)" style="cursor: pointer;"></th>
                                         <th>Date</th>
                                         <th>Representative</th>
                                         <th>Device</th>
@@ -143,17 +149,23 @@
 
                     <!-- Diagnostic Wizard Escalations -->
                     <div class="card glass-panel" style="padding: 0;">
-                        <div style="padding: 16px; border-bottom: 1px solid var(--border);">
-                            <h3 style="font-size: 16px; margin-bottom: 16px;">Diagnostic Wizard Escalations</h3>
-                            <div class="search-bar" style="margin-bottom: 0;">
-                                <i class="ph ph-magnifying-glass"></i>
-                                <input type="text" id="diag-search-input" placeholder="Search by Rep Name or Device..." onkeyup="adminApp.filterDiagTable()">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="font-size: 16px; margin-bottom: 16px;">Diagnostic Wizard Escalations</h3>
+                                <div class="search-bar" style="margin-bottom: 0; min-width: 300px;">
+                                    <i class="ph ph-magnifying-glass"></i>
+                                    <input type="text" id="diag-search-input" placeholder="Search by Rep Name or Device..." onkeyup="adminApp.filterDiagTable()">
+                                </div>
                             </div>
+                            <button class="btn" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 13px;" onclick="adminApp.deleteSelectedReports('diagnostics-table')">
+                                <i class="ph ph-trash"></i> Delete Selected
+                            </button>
                         </div>
                         <div class="data-table-container">
                             <table id="diagnostics-table">
                                 <thead>
                                     <tr>
+                                        <th style="width: 40px; text-align: center;"><input type="checkbox" onclick="adminApp.toggleSelectAll('diagnostics-table', this.checked)" style="cursor: pointer;"></th>
                                         <th>Date</th>
                                         <th>Representative</th>
                                         <th>Device</th>

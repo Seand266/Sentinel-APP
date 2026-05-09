@@ -321,6 +321,30 @@ const adminApp = {
         }
     },
 
+    toggleSelectAll: function(tableId, isChecked) {
+        document.querySelectorAll(`.report-checkbox-${tableId}`).forEach(cb => cb.checked = isChecked);
+    },
+
+    deleteSelectedReports: async function(tableId) {
+        const checkboxes = document.querySelectorAll(`.report-checkbox-${tableId}:checked`);
+        if (checkboxes.length === 0) {
+            alert("Please select at least one report to delete.");
+            return;
+        }
+
+        if(confirm(`Are you absolutely SURE you want to permanently delete these ${checkboxes.length} reports?`)) {
+            for (const cb of checkboxes) {
+                try {
+                    await db.collection('reports').doc(cb.value).delete();
+                } catch(e) {
+                    console.error("Error deleting report", cb.value, e);
+                }
+            }
+            // Real-time listener will auto-refresh the tables
+            document.querySelector(`#${tableId} thead input[type="checkbox"]`).checked = false;
+        }
+    },
+
     loadRequests: function() {
         const requests = this.requestsCache;
         const tbody = document.querySelector('#credentials-table tbody');
@@ -424,7 +448,8 @@ const adminApp = {
             const rowId = `${tableId}-row-${idx}`;
 
             html += `
-                <tr style="cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--surface-hover)'" onmouseout="this.style.backgroundColor='transparent'" onclick="document.getElementById('${rowId}-details').style.display = document.getElementById('${rowId}-details').style.display === 'none' ? 'table-row' : 'none'">
+                <tr style="cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--surface-hover)'" onmouseout="this.style.backgroundColor='transparent'" onclick="if(event.target.tagName !== 'INPUT') document.getElementById('${rowId}-details').style.display = document.getElementById('${rowId}-details').style.display === 'none' ? 'table-row' : 'none'">
+                    <td onclick="event.stopPropagation()" style="text-align: center;"><input type="checkbox" class="report-checkbox-${tableId}" value="${row.id}" style="cursor: pointer;"></td>
                     <td class="text-muted">${dateStr}</td>
                     <td style="font-weight: 500;">${repName}</td>
                     <td>${deviceName}</td>
@@ -437,7 +462,7 @@ const adminApp = {
                     </td>
                 </tr>
                 <tr id="${rowId}-details" style="display: none; background-color: var(--bg-body);">
-                    <td colspan="5" style="padding: 12px 16px; font-size: 13px; color: var(--text-main); white-space: normal; border-left: 4px solid var(--primary);">
+                    <td colspan="6" style="padding: 12px 16px; font-size: 13px; color: var(--text-main); white-space: normal; border-left: 4px solid var(--primary);">
                         ${fullNotes}
                     </td>
                 </tr>
