@@ -178,6 +178,14 @@ const adminApp = {
             this.resetsCache = resets.sort((a, b) => new Date(b.date) - new Date(a.date));
             this.loadResets();
         });
+
+        // Real-time listener for FAQs
+        db.collection('faqs').onSnapshot((snapshot) => {
+            const faqs = [];
+            snapshot.forEach(doc => faqs.push({ id: doc.id, ...doc.data() }));
+            faqs.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+            this.renderAdminFaqs(faqs);
+        });
     },
 
     loadUsers: function(searchQuery = '') {
@@ -658,11 +666,67 @@ const adminApp = {
 
         document.getElementById('admin-view-data').style.display = 'none';
         document.getElementById('admin-view-analytics').style.display = 'none';
+        document.getElementById('admin-view-faq').style.display = 'none';
         
         document.getElementById(`admin-view-${tabId}`).style.display = 'block';
         if (tabId === 'analytics') {
             this.updateAnalytics();
         }
+    },
+
+    addFaq: async function() {
+        const q = document.getElementById('admin-faq-q').value.trim();
+        const a = document.getElementById('admin-faq-a').value.trim();
+        if (!q || !a) {
+            alert('Please provide both a question and an answer.');
+            return;
+        }
+        try {
+            await db.collection('faqs').add({
+                question: q,
+                answer: a,
+                dateAdded: new Date().toISOString()
+            });
+            document.getElementById('admin-faq-q').value = '';
+            document.getElementById('admin-faq-a').value = '';
+        } catch (error) {
+            alert("Error adding FAQ: " + error.message);
+        }
+    },
+
+    deleteFaq: async function(id) {
+        if (!confirm('Are you sure you want to delete this FAQ?')) return;
+        try {
+            await db.collection('faqs').doc(id).delete();
+        } catch (error) {
+            alert("Error deleting FAQ: " + error.message);
+        }
+    },
+
+    renderAdminFaqs: function(faqs) {
+        const container = document.getElementById('admin-faq-list');
+        if (!container) return;
+        
+        if (faqs.length === 0) {
+            container.innerHTML = '<div class="text-muted" style="text-align: center; padding: 20px;">No FAQs added yet.</div>';
+            return;
+        }
+
+        let html = '';
+        faqs.forEach(f => {
+            html += `
+                <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; background: var(--bg-base); display: flex; justify-content: space-between; gap: 16px;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px; color: var(--text-main);">${f.question}</div>
+                        <div style="font-size: 13px; color: var(--text-muted);">${f.answer}</div>
+                    </div>
+                    <button class="btn" style="background: transparent; color: var(--danger); border: 1px solid var(--danger); height: fit-content; padding: 8px 12px; border-radius: var(--radius-sm);" onclick="adminApp.deleteFaq('${f.id}')">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
     },
 
     updateAnalytics: function() {

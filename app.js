@@ -176,6 +176,7 @@ const app = {
             
             app.dashboard.loadDashboardState();
             app.credentials.loadMetaCredentials();
+            app.intake.loadFaqs();
         },
 
         checkSession: function() {
@@ -430,6 +431,36 @@ const app = {
     // --- Intake Form Logic Tree ---
     intake: {
         data: { deviceType: null, photoAttached: false },
+
+        loadFaqs: function() {
+            db.collection('faqs').onSnapshot((snapshot) => {
+                const faqs = [];
+                snapshot.forEach(doc => faqs.push({ id: doc.id, ...doc.data() }));
+                faqs.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+                this.renderFaqs(faqs);
+            });
+        },
+
+        renderFaqs: function(faqs) {
+            const container = document.getElementById('rep-faq-list');
+            if (!container) return;
+            
+            if (faqs.length === 0) {
+                container.innerHTML = '<div class="text-muted text-sm">No FAQs available at this time.</div>';
+                return;
+            }
+
+            let html = '';
+            faqs.forEach(f => {
+                html += `
+                    <details class="glass-panel" style="margin-bottom: 0px; padding: 14px 16px; border-radius: var(--radius-md);">
+                        <summary style="font-weight: 600; cursor: pointer; outline: none; font-size: 15px; color: var(--text-main);">${f.question}</summary>
+                        <p style="margin-top: 10px; color: var(--text-muted); font-size: 14px; line-height: 1.5;">${f.answer}</p>
+                    </details>
+                `;
+            });
+            container.innerHTML = html;
+        },
 
         validateSN: function() {
             const deviceSelect = document.getElementById('diagnostic-device-select').value;
