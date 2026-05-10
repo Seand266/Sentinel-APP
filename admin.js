@@ -518,13 +518,18 @@ const adminApp = {
             const summaryText = row.notes || row.resolution || 'View details';
             const rowId = `${tableId}-row-${idx}`;
 
+            const store = row.store && row.store !== 'N/A' ? row.store : '<span class="text-muted">N/A</span>';
+            const category = row.category && row.category !== 'N/A' ? row.category : '<span class="text-muted">N/A</span>';
+
             html += `
                 <tr style="cursor: pointer; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='var(--surface-hover)'" onmouseout="this.style.backgroundColor='transparent'" onclick="if(event.target.tagName !== 'INPUT') document.getElementById('${rowId}-details').style.display = document.getElementById('${rowId}-details').style.display === 'none' ? 'table-row' : 'none'">
                     <td onclick="event.stopPropagation()" style="text-align: center;"><input type="checkbox" class="report-checkbox-${tableId}" value="${row.id}" style="cursor: pointer;"></td>
                     <td class="text-muted">${dateStr}</td>
                     <td style="font-weight: 500;">${repName}</td>
                     <td>${deviceName}</td>
+                    <td>${store}</td>
                     <td>${statusBadge}</td>
+                    <td>${category}</td>
                     <td class="text-muted" style="max-width: 200px;">
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px;">${summaryText}</span>
@@ -533,7 +538,7 @@ const adminApp = {
                     </td>
                 </tr>
                 <tr id="${rowId}-details" style="display: none; background-color: var(--bg-body);">
-                    <td colspan="6" style="padding: 12px 16px; font-size: 13px; color: var(--text-main); white-space: normal; border-left: 4px solid var(--primary);">
+                    <td colspan="8" style="padding: 12px 16px; font-size: 13px; color: var(--text-main); white-space: normal; border-left: 4px solid var(--primary);">
                         ${fullNotes}
                     </td>
                 </tr>
