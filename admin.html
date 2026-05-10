@@ -339,6 +339,31 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- FAQ Management Tab -->
+                <div id="admin-view-faq" style="display: none;">
+                    <div class="dashboard-grid">
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 16px; color: var(--primary);">Create New FAQ</h3>
+                            <div class="form-group mb-10">
+                                <label>Question</label>
+                                <input type="text" id="admin-faq-q" placeholder="e.g. How do I pair the Ray-Ban Meta glasses?">
+                            </div>
+                            <div class="form-group mb-20">
+                                <label>Answer</label>
+                                <textarea id="admin-faq-a" rows="4" placeholder="Detailed answer..."></textarea>
+                            </div>
+                            <button class="btn primary full-width" onclick="adminApp.addFaq()">Publish FAQ <i class="ph ph-plus"></i></button>
+                        </div>
+                        
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 16px;">Active Knowledge Base</h3>
+                            <div id="admin-faq-list" style="display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Populated via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
