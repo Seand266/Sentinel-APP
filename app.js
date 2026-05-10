@@ -125,7 +125,7 @@ const app = {
                     date: new Date().toISOString()
                 });
                 if (typeof emailjs !== 'undefined') {
-                    emailjs.send("service_syb4oto", "template_jbkqwyx", {
+                    emailjs.send("service_syb4oto", "template_0tx65cr", {
                         ticket_type: "Account Reset Request",
                         rep_name: email,
                         details: "User has requested a password reset/clear."
@@ -430,7 +430,7 @@ const app = {
             app.logDeviceHealth(sn, status, 'Report Submitted');
             
             if (typeof emailjs !== 'undefined') {
-                emailjs.send("service_syb4oto", "template_jbkqwyx", {
+                emailjs.send("service_syb4oto", "template_0tx65cr", {
                     ticket_type: "Standard Report",
                     rep_name: repName,
                     details: `Device: ${this.currentDevice.type} (${this.currentDevice.model})\nStatus: ${status}\nNotes: ${notes}`
@@ -587,7 +587,7 @@ const app = {
             });
 
             if (typeof emailjs !== 'undefined') {
-                emailjs.send("service_syb4oto", "template_jbkqwyx", {
+                emailjs.send("service_syb4oto", "template_0tx65cr", {
                     ticket_type: "Diagnostic Escalation",
                     rep_name: repName,
                     details: `Device: ${this.data.deviceType}\nResolution: ${this.data.resolutionText}\nCategory: ${category}\nStore: ${store}`

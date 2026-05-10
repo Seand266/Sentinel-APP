@@ -76,7 +76,7 @@ const adminApp = {
                 date: new Date().toISOString()
             });
             if (typeof emailjs !== 'undefined') {
-                emailjs.send("service_syb4oto", "template_jbkqwyx", {
+                emailjs.send("service_syb4oto", "template_0tx65cr", {
                     ticket_type: "Admin Account Reset Request",
                     rep_name: email,
                     details: "An admin has requested a password reset/clear."
