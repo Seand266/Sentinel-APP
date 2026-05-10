@@ -395,6 +395,8 @@ const app = {
         submitReport: function() {
             const status = document.getElementById('report-status-select').value;
             const notes = document.getElementById('report-notes').value;
+            const category = document.getElementById('report-category').value;
+            const store = document.getElementById('report-store').value || 'N/A';
             
             const repName = app.auth.currentUser ? `${app.auth.currentUser.first} ${app.auth.currentUser.last}` : "Unknown Rep";
             
@@ -404,6 +406,8 @@ const app = {
                 device: this.currentDevice.type,
                 model: this.currentDevice.model,
                 status: status,
+                category: category,
+                store: store,
                 notes: notes
             });
 
@@ -499,10 +503,16 @@ const app = {
             this.data = { deviceType: null, resolutionText: null, resolutionType: null };
             const deviceSelect = document.getElementById('diagnostic-device-select');
             if (deviceSelect) deviceSelect.value = "";
+            const categorySelect = document.getElementById('diag-category');
+            if (categorySelect) categorySelect.value = "N/A";
+            const storeInput = document.getElementById('diag-store');
+            if (storeInput) storeInput.value = "";
             document.getElementById('sn-error').textContent = "";
             this._goToStep('step-sn');
         },
         complete: function() {
+            const category = document.getElementById('diag-category') ? document.getElementById('diag-category').value : 'N/A';
+            const store = document.getElementById('diag-store') ? document.getElementById('diag-store').value : '';
             
             const repName = app.auth.currentUser ? `${app.auth.currentUser.first} ${app.auth.currentUser.last}` : "Unknown Rep";
             let reportStatus = 'Resolved Locally';
@@ -523,6 +533,8 @@ const app = {
                 device: this.data.deviceType || 'Unknown Device',
                 model: 'Diagnostic Run',
                 status: reportStatus,
+                category: category,
+                store: store || 'N/A',
                 notes: `Diagnostic Wizard Completed. Resolution: ${this.data.resolutionText}`
             });
 

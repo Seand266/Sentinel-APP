@@ -201,11 +201,27 @@
                         <div class="wizard-step active" id="step-sn">
                             <h3>1. Identify Device</h3>
                             <p>Select the device you are troubleshooting.</p>
-                            <div class="form-group mb-20" style="text-align: left;">
+                            <div class="form-group mb-10" style="text-align: left;">
                                 <select id="diagnostic-device-select">
                                     <option value="">Select a device...</option>
                                     <!-- Options will be dynamically populated in app.js -->
                                 </select>
+                            </div>
+                            <div class="form-group mb-10" style="text-align: left;">
+                                <label style="text-align: left; display: block; margin-bottom: 4px;">Issue Category (Optional)</label>
+                                <select id="diag-category">
+                                    <option value="N/A">N/A</option>
+                                    <option value="Hardware Damage">Hardware Damage</option>
+                                    <option value="Battery/Power">Battery / Power</option>
+                                    <option value="Software/OS Issue">Software / OS Issue</option>
+                                    <option value="Connectivity/WiFi">Connectivity / WiFi</option>
+                                    <option value="Missing Accessories">Missing Accessories</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-20" style="text-align: left;">
+                                <label style="text-align: left; display: block; margin-bottom: 4px;">Store Location / Number (Optional)</label>
+                                <input type="text" id="diag-store" placeholder="e.g. Best Buy #1234">
                             </div>
                             <div class="validation-message" id="sn-error"></div>
                             <button class="btn primary" onclick="app.intake.validateSN()">Start Diagnostic <i class="ph ph-arrow-right"></i></button>
