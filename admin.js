@@ -765,7 +765,7 @@ const adminApp = {
                         ${imgThumbnail}
                         <div style="flex: 1;">
                             <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px; color: var(--text-main);">${f.question}</div>
-                            <div style="font-size: 13px; color: var(--text-muted);">${f.answer}</div>
+                            <div style="font-size: 13px; color: var(--text-muted); white-space: pre-wrap;">${f.answer}</div>
                         </div>
                     </div>
                     <button class="btn" style="background: transparent; color: var(--danger); border: 1px solid var(--danger); height: fit-content; padding: 8px 12px; border-radius: var(--radius-sm);" onclick="adminApp.deleteFaq('${f.id}')">

@@ -457,7 +457,7 @@ const app = {
                     <details class="glass-panel" style="margin-bottom: 0px; padding: 14px 16px; border-radius: var(--radius-md);">
                         <summary style="font-weight: 600; cursor: pointer; outline: none; font-size: 15px; color: var(--text-main);">${f.question}</summary>
                         ${imgHtml}
-                        <p style="margin-top: 10px; color: var(--text-muted); font-size: 14px; line-height: 1.5;">${f.answer}</p>
+                        <p style="margin-top: 10px; color: var(--text-muted); font-size: 14px; line-height: 1.5; white-space: pre-wrap;">${f.answer}</p>
                     </details>
                 `;
             });
