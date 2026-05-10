@@ -452,9 +452,11 @@ const app = {
 
             let html = '';
             faqs.forEach(f => {
+                const imgHtml = f.imageUrl ? `<img src="${f.imageUrl}" style="width: 100%; border-radius: var(--radius-md); margin-top: 12px; border: 1px solid var(--border);">` : '';
                 html += `
                     <details class="glass-panel" style="margin-bottom: 0px; padding: 14px 16px; border-radius: var(--radius-md);">
                         <summary style="font-weight: 600; cursor: pointer; outline: none; font-size: 15px; color: var(--text-main);">${f.question}</summary>
+                        ${imgHtml}
                         <p style="margin-top: 10px; color: var(--text-muted); font-size: 14px; line-height: 1.5;">${f.answer}</p>
                     </details>
                 `;

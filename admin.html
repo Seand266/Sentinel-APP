@@ -349,11 +349,15 @@
                                 <label>Question</label>
                                 <input type="text" id="admin-faq-q" placeholder="e.g. How do I pair the Ray-Ban Meta glasses?">
                             </div>
-                            <div class="form-group mb-20">
+                            <div class="form-group mb-10">
                                 <label>Answer</label>
                                 <textarea id="admin-faq-a" rows="4" placeholder="Detailed answer..."></textarea>
                             </div>
-                            <button class="btn primary full-width" onclick="adminApp.addFaq()">Publish FAQ <i class="ph ph-plus"></i></button>
+                            <div class="form-group mb-20">
+                                <label>Image Attachment (Optional)</label>
+                                <input type="file" id="admin-faq-image" accept="image/*" style="padding: 10px;">
+                            </div>
+                            <button class="btn primary full-width" onclick="adminApp.addFaq()" id="btn-add-faq">Publish FAQ <i class="ph ph-plus"></i></button>
                         </div>
                         
                         <div class="card glass-panel" style="padding: 24px;">
@@ -372,6 +376,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-storage-compat.js"></script>
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyBE8yKvBzEYUhF9qkXxDHK533rJlXHR6KA",
@@ -384,6 +389,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
+        const storage = firebase.storage();
     </script>
     <script src="admin.js"></script>
 </body>

@@ -677,20 +677,40 @@ const adminApp = {
     addFaq: async function() {
         const q = document.getElementById('admin-faq-q').value.trim();
         const a = document.getElementById('admin-faq-a').value.trim();
+        const fileInput = document.getElementById('admin-faq-image');
+        const btn = document.getElementById('btn-add-faq');
+
         if (!q || !a) {
             alert('Please provide both a question and an answer.');
             return;
         }
+
+        btn.disabled = true;
+        btn.innerHTML = 'Publishing... <i class="ph ph-spinner ph-spin"></i>';
+
         try {
+            let imageUrl = null;
+            if (fileInput && fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const storageRef = storage.ref(`faqs/${Date.now()}_${file.name}`);
+                await storageRef.put(file);
+                imageUrl = await storageRef.getDownloadURL();
+            }
+
             await db.collection('faqs').add({
                 question: q,
                 answer: a,
+                imageUrl: imageUrl,
                 dateAdded: new Date().toISOString()
             });
             document.getElementById('admin-faq-q').value = '';
             document.getElementById('admin-faq-a').value = '';
+            if (fileInput) fileInput.value = '';
         } catch (error) {
             alert("Error adding FAQ: " + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Publish FAQ <i class="ph ph-plus"></i>';
         }
     },
 
@@ -714,11 +734,15 @@ const adminApp = {
 
         let html = '';
         faqs.forEach(f => {
+            const imgThumbnail = f.imageUrl ? `<img src="${f.imageUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: var(--radius-sm); margin-right: 16px; border: 1px solid var(--border);">` : '';
             html += `
                 <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; background: var(--bg-base); display: flex; justify-content: space-between; gap: 16px;">
-                    <div style="flex: 1;">
-                        <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px; color: var(--text-main);">${f.question}</div>
-                        <div style="font-size: 13px; color: var(--text-muted);">${f.answer}</div>
+                    <div style="display: flex; flex: 1; align-items: center;">
+                        ${imgThumbnail}
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px; color: var(--text-main);">${f.question}</div>
+                            <div style="font-size: 13px; color: var(--text-muted);">${f.answer}</div>
+                        </div>
                     </div>
                     <button class="btn" style="background: transparent; color: var(--danger); border: 1px solid var(--danger); height: fit-content; padding: 8px 12px; border-radius: var(--radius-sm);" onclick="adminApp.deleteFaq('${f.id}')">
                         <i class="ph ph-trash"></i>
