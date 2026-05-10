@@ -124,6 +124,13 @@ const app = {
                     email: email,
                     date: new Date().toISOString()
                 });
+                if (typeof emailjs !== 'undefined') {
+                    emailjs.send("service_syb4oto", "template_jbkqwyx", {
+                        ticket_type: "Account Reset Request",
+                        rep_name: email,
+                        details: "User has requested a password reset/clear."
+                    }).catch(e => console.error(e));
+                }
                 errorEl.innerText = "Account reset request sent! Please wait for an Admin to clear your account before trying to sign up again.";
                 errorEl.style.color = 'var(--success)';
             } catch (err) {
@@ -421,6 +428,14 @@ const app = {
             
             const sn = (app.auth.currentUser.sns && app.auth.currentUser.sns[key]) ? app.auth.currentUser.sns[key] : 'Unknown';
             app.logDeviceHealth(sn, status, 'Report Submitted');
+            
+            if (typeof emailjs !== 'undefined') {
+                emailjs.send("service_syb4oto", "template_jbkqwyx", {
+                    ticket_type: "Standard Report",
+                    rep_name: repName,
+                    details: `Device: ${this.currentDevice.type} (${this.currentDevice.model})\nStatus: ${status}\nNotes: ${notes}`
+                }).catch(e => console.error(e));
+            }
 
             this.loadDashboardState();
             this.closeReportModal();
@@ -570,6 +585,14 @@ const app = {
                 store: store || 'N/A',
                 notes: `Diagnostic Wizard Completed. Resolution: ${this.data.resolutionText}`
             });
+
+            if (typeof emailjs !== 'undefined') {
+                emailjs.send("service_syb4oto", "template_jbkqwyx", {
+                    ticket_type: "Diagnostic Escalation",
+                    rep_name: repName,
+                    details: `Device: ${this.data.deviceType}\nResolution: ${this.data.resolutionText}\nCategory: ${category}\nStore: ${store}`
+                }).catch(e => console.error(e));
+            }
 
             // Find SN and push to device_health_logs
             let sn = 'Unknown';
@@ -727,6 +750,14 @@ const app = {
                 system: system,
                 reason: reason
             });
+            
+            if (typeof emailjs !== 'undefined') {
+                emailjs.send("service_syb4oto", "template_jbkqwyx", {
+                    ticket_type: "Credential Request",
+                    rep_name: repName,
+                    details: `System: ${system}\nReason: ${reason}`
+                }).catch(e => console.error(e));
+            }
             
             document.getElementById('reason').value = "";
             alert(`Credential Reset Request for ${system} has been submitted to the Admin Dashboard!`);

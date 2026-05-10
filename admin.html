@@ -389,6 +389,14 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
     </script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+       (function(){
+          emailjs.init({
+            publicKey: "OSnwHaVORnAhqi4rp",
+          });
+       })();
+    </script>
     <script src="admin.js"></script>
 </body>
 </html>

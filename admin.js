@@ -75,6 +75,13 @@ const adminApp = {
                 email: email,
                 date: new Date().toISOString()
             });
+            if (typeof emailjs !== 'undefined') {
+                emailjs.send("service_syb4oto", "template_jbkqwyx", {
+                    ticket_type: "Admin Account Reset Request",
+                    rep_name: email,
+                    details: "An admin has requested a password reset/clear."
+                }).catch(e => console.error(e));
+            }
             errorEl.innerText = "Account reset request sent! Please wait for an Admin to clear your account before trying to sign up again.";
             errorEl.style.color = 'var(--success)';
         } catch (err) {
