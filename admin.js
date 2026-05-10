@@ -502,7 +502,7 @@ const adminApp = {
             const status = row.status || 'open';
             
             let statusBadge = '';
-            if (status.toLowerCase().includes('operational') || status === 'closed') statusBadge = `<span class="status-indicator online">${status}</span>`;
+            if (status.toLowerCase().includes('operational') || status === 'closed' || status.toLowerCase().includes('resolved')) statusBadge = `<span class="status-indicator online">${status}</span>`;
             else if (status.toLowerCase().includes('issue') || status === 'open') statusBadge = `<span class="status-indicator warning">${status}</span>`;
             else statusBadge = `<span class="status-indicator error">${status}</span>`;
 
