@@ -77,13 +77,12 @@ const app = {
         signup: async function() {
             const first = document.getElementById('signup-first').value.trim();
             const last = document.getElementById('signup-last').value.trim();
-            const date = document.getElementById('signup-date').value;
             const retailer = document.getElementById('signup-retailer').value;
             const email = document.getElementById('signup-email').value.trim().toLowerCase();
             const pass = document.getElementById('signup-pass').value;
             const errorEl = document.getElementById('auth-error');
 
-            if (!first || !last || !date || !retailer || !email || !pass) {
+            if (!first || !last || !retailer || !email || !pass) {
                 errorEl.innerText = "Please fill in all fields.";
                 return;
             }
@@ -102,7 +101,7 @@ const app = {
                 await auth.createUserWithEmailAndPassword(email, pass);
                 
                 // Store extended profile data in Firestore
-                const userData = { first, last, hireDate: date, retailer, toggles };
+                const userData = { first, last, retailer, toggles };
                 await db.collection('users').doc(email).set(userData);
                 
                 this._completeLogin(userData, email);

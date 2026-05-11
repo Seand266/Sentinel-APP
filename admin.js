@@ -37,12 +37,11 @@ const adminApp = {
     signup: async function() {
         const first = document.getElementById('signup-first').value.trim();
         const last = document.getElementById('signup-last').value.trim();
-        const date = document.getElementById('signup-date').value;
         const email = document.getElementById('signup-email').value.trim().toLowerCase();
         const pass = document.getElementById('signup-pass').value;
         const errorEl = document.getElementById('auth-error');
 
-        if (!first || !last || !date || !email || !pass) {
+        if (!first || !last || !email || !pass) {
             errorEl.innerText = "Please fill in all fields.";
             return;
         }
@@ -54,7 +53,7 @@ const adminApp = {
 
         try {
             await auth.createUserWithEmailAndPassword(email, pass);
-            const userData = { first, last, hireDate: date, role: 'admin' };
+            const userData = { first, last, role: 'admin' };
             await db.collection('admins').doc(email).set(userData);
             this._completeLogin(userData, email);
         } catch (error) {
