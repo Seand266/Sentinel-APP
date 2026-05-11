@@ -39,10 +39,16 @@ const adminApp = {
         const last = document.getElementById('signup-last').value.trim();
         const email = document.getElementById('signup-email').value.trim().toLowerCase();
         const pass = document.getElementById('signup-pass').value;
+        const confirmPass = document.getElementById('signup-confirm-pass').value;
         const errorEl = document.getElementById('auth-error');
 
-        if (!first || !last || !email || !pass) {
+        if (!first || !last || !email || !pass || !confirmPass) {
             errorEl.innerText = "Please fill in all fields.";
+            return;
+        }
+
+        if (pass !== confirmPass) {
+            errorEl.innerText = "Passwords do not match.";
             return;
         }
 

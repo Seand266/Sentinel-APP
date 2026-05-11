@@ -80,10 +80,16 @@ const app = {
             const retailer = document.getElementById('signup-retailer').value;
             const email = document.getElementById('signup-email').value.trim().toLowerCase();
             const pass = document.getElementById('signup-pass').value;
+            const confirmPass = document.getElementById('signup-confirm-pass').value;
             const errorEl = document.getElementById('auth-error');
 
-            if (!first || !last || !retailer || !email || !pass) {
+            if (!first || !last || !retailer || !email || !pass || !confirmPass) {
                 errorEl.innerText = "Please fill in all fields.";
+                return;
+            }
+
+            if (pass !== confirmPass) {
+                errorEl.innerText = "Passwords do not match.";
                 return;
             }
 
