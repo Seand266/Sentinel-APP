@@ -155,6 +155,9 @@ const app = {
             }
 
             try {
+                // Set explicit local persistence to keep users logged in
+                await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+                
                 // Sign in with Firebase Auth
                 await auth.signInWithEmailAndPassword(email, pass);
                 

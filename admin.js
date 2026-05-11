@@ -106,6 +106,7 @@ const adminApp = {
         }
 
         try {
+            await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
             await auth.signInWithEmailAndPassword(email, pass);
             const doc = await db.collection('admins').doc(email).get();
             if (doc.exists) {
