@@ -1087,12 +1087,23 @@ const adminApp = {
             else typeBadge = `<span class="status-indicator">${log.type}</span>`;
 
             // Simplify user agent for display
-            let uaSimple = log.userAgent || 'Unknown User Agent';
-            if (uaSimple.includes('Windows')) uaSimple = 'Windows PC';
-            else if (uaSimple.includes('Mac OS')) uaSimple = 'Mac';
-            else if (uaSimple.includes('Android')) uaSimple = 'Android Device';
-            else if (uaSimple.includes('iPhone') || uaSimple.includes('iPad')) uaSimple = 'iOS Device';
-            else uaSimple = 'Unknown Device';
+            const rawUa = log.userAgent || '';
+            const uaLower = rawUa.toLowerCase();
+            let uaSimple = 'Unknown Device';
+            
+            if (uaLower.includes('iphone') || uaLower.includes('ipad') || uaLower.includes('ipod')) {
+                uaSimple = 'iOS Device';
+            } else if (uaLower.includes('android')) {
+                uaSimple = 'Android Device';
+            } else if (uaLower.includes('mac os') || uaLower.includes('macintosh')) {
+                uaSimple = 'Mac';
+            } else if (uaLower.includes('windows')) {
+                uaSimple = 'Windows PC';
+            } else if (uaLower.includes('linux')) {
+                uaSimple = 'Linux PC';
+            } else if (rawUa) {
+                uaSimple = 'Other Device';
+            }
 
             // Format additional details
             const details = {...log};
