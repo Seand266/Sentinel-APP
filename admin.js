@@ -23,7 +23,7 @@ const adminApp = {
     // --- Logger Service ---
     logger: {
         logView: function(viewId) {
-            this._writeLog('page_view', viewId);
+            this._writeLog('page_view', `Admin: ${viewId}`);
         },
         logEvent: function(eventName, details = {}) {
             this._writeLog('interaction', eventName, details);
