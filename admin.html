@@ -86,6 +86,7 @@
                     <button class="btn secondary admin-tab-btn" id="tab-btn-analytics" onclick="adminApp.switchAdminTab('analytics')"><i class="ph ph-chart-pie-slice"></i> Fleet Analytics</button>
                     <button class="btn secondary admin-tab-btn" id="tab-btn-faq" onclick="adminApp.switchAdminTab('faq')"><i class="ph ph-book-open-text"></i> FAQ Management</button>
                     <button class="btn secondary admin-tab-btn" id="tab-btn-admins" onclick="adminApp.switchAdminTab('admins')"><i class="ph ph-user-plus"></i> Admin Management</button>
+                    <button class="btn secondary admin-tab-btn" id="tab-btn-logs" onclick="adminApp.switchAdminTab('logs')"><i class="ph ph-list-magnifying-glass"></i> System Logs</button>
                 </div>
 
                 <div id="admin-view-data">
@@ -386,6 +387,40 @@
                                 <!-- Populated via JS -->
                             </div>
                         </div>
+
+                <!-- System Logs Tab -->
+                <div id="admin-view-logs" style="display: none;">
+                    <div class="card glass-panel" style="padding: 0; margin-bottom: 24px;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="font-size: 16px; margin-bottom: 16px;">View Logger & Interactions</h3>
+                                <div class="search-bar" style="margin-bottom: 0; min-width: 300px;">
+                                    <i class="ph ph-magnifying-glass"></i>
+                                    <input type="text" id="search-logs-input" placeholder="Search by User, Event, or Device..." onkeyup="adminApp.filterLogsTable()">
+                                </div>
+                            </div>
+                            <button class="btn primary" onclick="adminApp.exportLogsToCSV()">
+                                <i class="ph ph-microsoft-excel-logo"></i> Export Logs
+                            </button>
+                        </div>
+                        <div class="data-table-container">
+                            <table id="logs-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Type</th>
+                                        <th>Action / View</th>
+                                        <th>User ID</th>
+                                        <th>Metadata / User Agent</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by admin.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
                     </div>
                 </div>
             </main>

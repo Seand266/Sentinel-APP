@@ -56,6 +56,36 @@ const app = {
         });
     },
 
+    // --- Logger Service ---
+    logger: {
+        logView: function(viewId) {
+            this._writeLog('page_view', viewId);
+        },
+        logEvent: function(eventName, details = {}) {
+            this._writeLog('interaction', eventName, details);
+        },
+        _writeLog: async function(type, viewOrEvent, details = {}) {
+            try {
+                const userId = app.auth.currentUser ? app.auth.currentUser.email : "anonymous";
+                const logData = {
+                    timestamp: new Date().toISOString(),
+                    view: viewOrEvent,
+                    userId: userId,
+                    userAgent: navigator.userAgent,
+                    type: type,
+                    ...details
+                };
+                
+                // Fire and forget (non-blocking async)
+                db.collection('view_logs').add(logData).catch(() => {
+                    // Fail silently to prevent interrupting user experience
+                });
+            } catch (err) {
+                // Failsafe catch block
+            }
+        }
+    },
+
     // --- Auth System ---
     auth: {
         currentUser: null,
@@ -218,9 +248,12 @@ const app = {
     nav: {
         goTo: function(viewId) {
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            event.currentTarget.classList.add('active');
+            if(event && event.currentTarget) event.currentTarget.classList.add('active');
             document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
             document.getElementById(`view-${viewId}`).classList.add('active');
+            
+            // Trigger background view logger
+            if(app.logger) app.logger.logView(viewId);
         }
     },
 

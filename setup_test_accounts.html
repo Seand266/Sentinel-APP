@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Setup Test Accounts</title>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <h1>Provisioning Test Accounts...</h1>
+    <div id="status">Starting...</div>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBE8yKvBzEYUhF9qkXxDHK533rJlXHR6KA",
+            authDomain: "sentinel-f77ba.firebaseapp.com",
+            projectId: "sentinel-f77ba",
+            storageBucket: "sentinel-f77ba.firebasestorage.app",
+            messagingSenderId: "1090550692649",
+            appId: "1:1090550692649:web:dbb4d9aade527d49a79538"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        async function provision() {
+            try {
+                // We create a dummy test script without deleting existing users because we don't have admin sdk.
+                // Firebase Web SDK doesn't allow deleting other users. We'll just create or login.
+                
+                // --- ADMIN ACCOUNT ---
+                let adminCred;
+                try {
+                    adminCred = await auth.createUserWithEmailAndPassword("testadmin@sentinel.com", "Password123!");
+                } catch(e) {
+                    if(e.code === 'auth/email-already-in-use') {
+                        adminCred = await auth.signInWithEmailAndPassword("testadmin@sentinel.com", "Password123!");
+                    } else throw e;
+                }
+                
+                await db.collection('admins').doc("testadmin@sentinel.com").set({
+                    email: "testadmin@sentinel.com",
+                    role: "admin",
+                    dateAdded: new Date().toISOString()
+                });
+                await db.collection('users').doc("testadmin@sentinel.com").set({
+                    first: "Test",
+                    last: "Admin",
+                    role: "admin"
+                });
+
+                // --- REP ACCOUNT ---
+                let repCred;
+                try {
+                    repCred = await auth.createUserWithEmailAndPassword("testrep@sentinel.com", "Password123!");
+                } catch(e) {
+                    if(e.code === 'auth/email-already-in-use') {
+                        repCred = await auth.signInWithEmailAndPassword("testrep@sentinel.com", "Password123!");
+                    } else throw e;
+                }
+                
+                await db.collection('users').doc("testrep@sentinel.com").set({
+                    first: "Test",
+                    last: "Rep",
+                    role: "rep"
+                });
+
+                document.getElementById('status').innerText = "DONE_PROVISIONING";
+            } catch (err) {
+                document.getElementById('status').innerText = "ERROR: " + err.message;
+            }
+        }
+        provision();
+    </script>
+</body>
+</html>

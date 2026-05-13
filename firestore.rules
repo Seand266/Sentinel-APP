@@ -70,5 +70,15 @@ service cloud.firestore {
       allow create: if isCompanyEmail() || isAdmin();
       allow read, delete: if isAdmin();
     }
+    // --- View Logs Collection ---
+    match /view_logs/{logId} {
+      // Anyone can log views, but must match a strict schema
+      allow create: if request.resource.data.keys().hasAll(['timestamp', 'view', 'userId', 'userAgent'])
+                    && request.resource.data.timestamp is string
+                    && request.resource.data.view is string
+                    && request.resource.data.userId is string
+                    && request.resource.data.userAgent is string;
+      allow read, update, delete: if isAdmin();
+    }
   }
 }

@@ -20,12 +20,43 @@ const adminApp = {
         });
     },
 
+    // --- Logger Service ---
+    logger: {
+        logView: function(viewId) {
+            this._writeLog('page_view', viewId);
+        },
+        logEvent: function(eventName, details = {}) {
+            this._writeLog('interaction', eventName, details);
+        },
+        _writeLog: async function(type, viewOrEvent, details = {}) {
+            try {
+                const userId = adminApp.currentUser ? adminApp.currentUser.email : "anonymous_admin";
+                const logData = {
+                    timestamp: new Date().toISOString(),
+                    view: viewOrEvent,
+                    userId: userId,
+                    userAgent: navigator.userAgent,
+                    type: type,
+                    ...details
+                };
+                
+                // Fire and forget (non-blocking async)
+                db.collection('view_logs').add(logData).catch(() => {
+                    // Fail silently to prevent interrupting user experience
+                });
+            } catch (err) {
+                // Failsafe catch block
+            }
+        }
+    },
+
     currentUser: null,
     currentData: [],
     usersCache: {},
     reportsCache: [],
     diagCache: [],
     requestsCache: [],
+    logsCache: [],
 
 
 
@@ -167,6 +198,14 @@ const adminApp = {
             const adminsList = [];
             snapshot.forEach(doc => adminsList.push({ email: doc.id, ...doc.data() }));
             this.renderAdminsList(adminsList);
+        });
+
+        // Real-time listener for view_logs (limit to 500 to prevent crashing)
+        db.collection('view_logs').orderBy('timestamp', 'desc').limit(500).onSnapshot((snapshot) => {
+            const logs = [];
+            snapshot.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
+            this.logsCache = logs;
+            this.renderLogsTable(logs);
         });
     },
 
@@ -650,11 +689,14 @@ const adminApp = {
         document.getElementById('admin-view-analytics').style.display = 'none';
         document.getElementById('admin-view-faq').style.display = 'none';
         document.getElementById('admin-view-admins').style.display = 'none';
+        document.getElementById('admin-view-logs').style.display = 'none';
         
         document.getElementById(`admin-view-${tabId}`).style.display = 'block';
         if (tabId === 'analytics') {
             this.updateAnalytics();
         }
+
+        if(this.logger) this.logger.logView(`admin_${tabId}`);
     },
 
     createAdmin: async function() {
@@ -1020,6 +1062,89 @@ const adminApp = {
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
         link.setAttribute("download", "live_fleet_profiles.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    },
+
+    renderLogsTable: function(logsData) {
+        const tbody = document.querySelector('#logs-table tbody');
+        if (!tbody) return;
+        
+        if (logsData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No logs available.</td></tr>';
+            return;
+        }
+
+        let html = '';
+        logsData.forEach(log => {
+            const d = new Date(log.timestamp);
+            const dateStr = `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+            
+            let typeBadge = '';
+            if (log.type === 'page_view') typeBadge = '<span class="status-indicator online">Page View</span>';
+            else if (log.type === 'interaction') typeBadge = '<span class="status-indicator warning">Interaction</span>';
+            else typeBadge = `<span class="status-indicator">${log.type}</span>`;
+
+            // Simplify user agent for display
+            let uaSimple = log.userAgent;
+            if (uaSimple.includes('Windows')) uaSimple = 'Windows PC';
+            else if (uaSimple.includes('Mac OS')) uaSimple = 'Mac';
+            else if (uaSimple.includes('Android')) uaSimple = 'Android Device';
+            else if (uaSimple.includes('iPhone') || uaSimple.includes('iPad')) uaSimple = 'iOS Device';
+            else uaSimple = 'Unknown Device';
+
+            // Stringify additional details if present
+            const details = {...log};
+            delete details.id; delete details.timestamp; delete details.type; delete details.view; delete details.userId; delete details.userAgent;
+            const detailsStr = Object.keys(details).length > 0 ? `<br><small style="color: var(--text-muted);">${JSON.stringify(details)}</small>` : '';
+
+            html += `
+                <tr>
+                    <td style="white-space: nowrap; color: var(--text-muted);">${dateStr}</td>
+                    <td>${typeBadge}</td>
+                    <td style="font-weight: 500;">${log.view}</td>
+                    <td>${log.userId}</td>
+                    <td style="font-size: 13px;">${uaSimple}${detailsStr}</td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    },
+
+    filterLogsTable: function() {
+        const query = document.getElementById('search-logs-input').value.toLowerCase();
+        const filtered = this.logsCache.filter(log => {
+            const searchStr = `${log.view} ${log.userId} ${log.type} ${log.userAgent}`.toLowerCase();
+            return searchStr.includes(query);
+        });
+        this.renderLogsTable(filtered);
+    },
+
+    exportLogsToCSV: function() {
+        const data = this.logsCache;
+        if (data.length === 0) {
+            alert("No logs to export.");
+            return;
+        }
+
+        const headers = "Timestamp,Type,View/Action,User ID,User Agent,Details\n";
+        const csvRows = [];
+
+        data.forEach(log => {
+            const details = {...log};
+            delete details.id; delete details.timestamp; delete details.type; delete details.view; delete details.userId; delete details.userAgent;
+            const detailsStr = Object.keys(details).length > 0 ? JSON.stringify(details).replace(/"/g, '""') : '';
+            
+            csvRows.push(`"${log.timestamp}","${log.type}","${log.view}","${log.userId}","${log.userAgent.replace(/"/g, '""')}","${detailsStr}"`);
+        });
+
+        const csvContent = "data:text/csv;charset=utf-8," + headers + csvRows.join("\n");
+        const encodedUri = encodeURI(csvContent);
+        
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "system_logs_export.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
