@@ -1087,17 +1087,32 @@ const adminApp = {
             else typeBadge = `<span class="status-indicator">${log.type}</span>`;
 
             // Simplify user agent for display
-            let uaSimple = log.userAgent;
+            let uaSimple = log.userAgent || 'Unknown User Agent';
             if (uaSimple.includes('Windows')) uaSimple = 'Windows PC';
             else if (uaSimple.includes('Mac OS')) uaSimple = 'Mac';
             else if (uaSimple.includes('Android')) uaSimple = 'Android Device';
             else if (uaSimple.includes('iPhone') || uaSimple.includes('iPad')) uaSimple = 'iOS Device';
             else uaSimple = 'Unknown Device';
 
-            // Stringify additional details if present
+            // Format additional details
             const details = {...log};
             delete details.id; delete details.timestamp; delete details.type; delete details.view; delete details.userId; delete details.userAgent;
-            const detailsStr = Object.keys(details).length > 0 ? `<br><small style="color: var(--text-muted);">${JSON.stringify(details)}</small>` : '';
+            
+            let metadataHtml = `
+                <div style="font-weight: 600; margin-bottom: 4px;">${uaSimple}</div>
+                <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; word-break: break-all; line-height: 1.2;">${log.userAgent}</div>
+            `;
+            
+            if (Object.keys(details).length > 0) {
+                const prettyJson = JSON.stringify(details, null, 2)
+                    .replace(/\\n/g, '<br>')
+                    .replace(/ "/g, '&nbsp;&nbsp;"');
+                metadataHtml += `
+                    <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 6px; border-radius: var(--radius-sm); font-family: monospace; font-size: 11px; color: var(--primary); white-space: pre-wrap;">
+                        ${prettyJson}
+                    </div>
+                `;
+            }
 
             html += `
                 <tr>
@@ -1105,7 +1120,7 @@ const adminApp = {
                     <td>${typeBadge}</td>
                     <td style="font-weight: 500;">${log.view}</td>
                     <td>${log.userId}</td>
-                    <td style="font-size: 13px;">${uaSimple}${detailsStr}</td>
+                    <td style="font-size: 13px; max-width: 300px;">${metadataHtml}</td>
                 </tr>
             `;
         });
