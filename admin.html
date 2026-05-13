@@ -37,7 +37,6 @@
             <div class="login-box card glass-panel">
                 <div class="auth-tabs">
                     <button class="auth-tab active" id="tab-login" onclick="adminApp.switchTab('login')">Admin Login</button>
-                    <button class="auth-tab" id="tab-signup" onclick="adminApp.switchTab('signup')">Sign Up</button>
                 </div>
                 
                 <!-- Login Form -->
@@ -54,25 +53,7 @@
                     <button class="btn primary full-width" onclick="adminApp.login()">Secure Login <i class="ph ph-lock-key-open"></i></button>
                 </div>
 
-                <!-- Signup Form -->
-                <div id="auth-signup" class="hidden">
-                    <div class="form-group mb-10">
-                        <input type="text" id="signup-first" placeholder="First Name">
-                    </div>
-                    <div class="form-group mb-10">
-                        <input type="text" id="signup-last" placeholder="Last Name">
-                    </div>
-                    <div class="form-group mb-10">
-                        <input type="email" id="signup-email" placeholder="Email (@2020companies.com)">
-                    </div>
-                    <div class="form-group mb-10">
-                        <input type="password" id="signup-pass" placeholder="Create Admin Password">
-                    </div>
-                    <div class="form-group mb-20">
-                        <input type="password" id="signup-confirm-pass" placeholder="Confirm Password">
-                    </div>
-                    <button class="btn primary full-width" onclick="adminApp.signup()">Create Admin Account</button>
-                </div>
+
                 <div class="validation-message mt-10" id="auth-error"></div>
             </div>
         </section>
@@ -100,10 +81,11 @@
                     </button>
                 </div>
 
-                <div class="admin-tabs" style="display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                <div class="admin-tabs" style="display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-wrap: wrap;">
                     <button class="btn primary admin-tab-btn" id="tab-btn-data" onclick="adminApp.switchAdminTab('data')"><i class="ph ph-table"></i> Data Grids</button>
                     <button class="btn secondary admin-tab-btn" id="tab-btn-analytics" onclick="adminApp.switchAdminTab('analytics')"><i class="ph ph-chart-pie-slice"></i> Fleet Analytics</button>
                     <button class="btn secondary admin-tab-btn" id="tab-btn-faq" onclick="adminApp.switchAdminTab('faq')"><i class="ph ph-book-open-text"></i> FAQ Management</button>
+                    <button class="btn secondary admin-tab-btn" id="tab-btn-admins" onclick="adminApp.switchAdminTab('admins')"><i class="ph ph-user-plus"></i> Admin Management</button>
                 </div>
 
                 <div id="admin-view-data">
@@ -362,6 +344,45 @@
                         <div class="card glass-panel" style="padding: 24px;">
                             <h3 style="margin-bottom: 16px;">Active Knowledge Base</h3>
                             <div id="admin-faq-list" style="display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Populated via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Management Tab -->
+                <div id="admin-view-admins" style="display: none;">
+                    <div class="dashboard-grid">
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 16px; color: var(--primary);">Provision New Admin Account</h3>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Use this form to securely create a new administrator. They will be granted full access to the Admin Dashboard.</p>
+                            <div class="form-group mb-10">
+                                <label>First Name</label>
+                                <input type="text" id="new-admin-first" placeholder="e.g. John">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Last Name</label>
+                                <input type="text" id="new-admin-last" placeholder="e.g. Doe">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Email Address</label>
+                                <input type="email" id="new-admin-email" placeholder="Must be @2020companies.com">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Temporary Password</label>
+                                <input type="password" id="new-admin-pass" placeholder="Create a strong password">
+                            </div>
+                            <div class="form-group mb-20">
+                                <label>Confirm Password</label>
+                                <input type="password" id="new-admin-confirm-pass" placeholder="Re-enter password">
+                            </div>
+                            <button class="btn primary full-width" onclick="adminApp.createAdmin()" id="btn-create-admin">Provision Administrator <i class="ph ph-shield-plus"></i></button>
+                            <div id="create-admin-error" class="validation-message mt-10"></div>
+                        </div>
+
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 16px;">Active Administrators</h3>
+                            <div id="admin-list" style="display: flex; flex-direction: column; gap: 12px;">
                                 <!-- Populated via JS -->
                             </div>
                         </div>

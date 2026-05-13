@@ -1,5 +1,12 @@
 // Admin Application Logic
 
+let secondaryApp;
+try {
+    secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary");
+} catch(e) {
+    secondaryApp = firebase.app("Secondary");
+}
+
 const adminApp = {
     logDeviceHealth: function(sn, status, eventType) {
         if (!sn || sn === 'Cleared' || sn === 'Unknown') return;
@@ -20,52 +27,7 @@ const adminApp = {
     diagCache: [],
     requestsCache: [],
 
-    switchTab: function(tab) {
-        document.querySelectorAll('.auth-tab').forEach(el => el.classList.remove('active'));
-        document.getElementById(`tab-${tab}`).classList.add('active');
-        
-        if (tab === 'login') {
-            document.getElementById('auth-login').classList.remove('hidden');
-            document.getElementById('auth-signup').classList.add('hidden');
-        } else {
-            document.getElementById('auth-login').classList.add('hidden');
-            document.getElementById('auth-signup').classList.remove('hidden');
-        }
-        document.getElementById('auth-error').innerText = "";
-    },
 
-    signup: async function() {
-        const first = document.getElementById('signup-first').value.trim();
-        const last = document.getElementById('signup-last').value.trim();
-        const email = document.getElementById('signup-email').value.trim().toLowerCase();
-        const pass = document.getElementById('signup-pass').value;
-        const confirmPass = document.getElementById('signup-confirm-pass').value;
-        const errorEl = document.getElementById('auth-error');
-
-        if (!first || !last || !email || !pass || !confirmPass) {
-            errorEl.innerText = "Please fill in all fields.";
-            return;
-        }
-
-        if (pass !== confirmPass) {
-            errorEl.innerText = "Passwords do not match.";
-            return;
-        }
-
-        if (!email.endsWith('@2020companies.com')) {
-            errorEl.innerText = "Email must be a @2020companies.com domain.";
-            return;
-        }
-
-        try {
-            await auth.createUserWithEmailAndPassword(email, pass);
-            const userData = { first, last, role: 'admin' };
-            await db.collection('admins').doc(email).set(userData);
-            this._completeLogin(userData, email);
-        } catch (error) {
-            errorEl.innerText = error.message;
-        }
-    },
 
     resetPassword: async function() {
         const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -198,6 +160,13 @@ const adminApp = {
             snapshot.forEach(doc => faqs.push({ id: doc.id, ...doc.data() }));
             faqs.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
             this.renderAdminFaqs(faqs);
+        });
+
+        // Real-time listener for admins
+        db.collection('admins').onSnapshot((snapshot) => {
+            const adminsList = [];
+            snapshot.forEach(doc => adminsList.push({ email: doc.id, ...doc.data() }));
+            this.renderAdminsList(adminsList);
         });
     },
 
@@ -680,11 +649,118 @@ const adminApp = {
         document.getElementById('admin-view-data').style.display = 'none';
         document.getElementById('admin-view-analytics').style.display = 'none';
         document.getElementById('admin-view-faq').style.display = 'none';
+        document.getElementById('admin-view-admins').style.display = 'none';
         
         document.getElementById(`admin-view-${tabId}`).style.display = 'block';
         if (tabId === 'analytics') {
             this.updateAnalytics();
         }
+    },
+
+    createAdmin: async function() {
+        const first = document.getElementById('new-admin-first').value.trim();
+        const last = document.getElementById('new-admin-last').value.trim();
+        const email = document.getElementById('new-admin-email').value.trim().toLowerCase();
+        const pass = document.getElementById('new-admin-pass').value;
+        const confirmPass = document.getElementById('new-admin-confirm-pass').value;
+        const errorEl = document.getElementById('create-admin-error');
+        const btn = document.getElementById('btn-create-admin');
+
+        errorEl.innerText = "";
+
+        if (!first || !last || !email || !pass || !confirmPass) {
+            errorEl.innerText = "Please fill in all fields.";
+            errorEl.style.color = "var(--danger)";
+            return;
+        }
+
+        if (pass !== confirmPass) {
+            errorEl.innerText = "Passwords do not match.";
+            errorEl.style.color = "var(--danger)";
+            return;
+        }
+
+        if (!email.endsWith('@2020companies.com')) {
+            errorEl.innerText = "Email must be a @2020companies.com domain.";
+            errorEl.style.color = "var(--danger)";
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = 'Provisioning... <i class="ph ph-spinner ph-spin"></i>';
+
+        try {
+            // Use the secondary app to create the user so the current admin is NOT logged out
+            await secondaryApp.auth().createUserWithEmailAndPassword(email, pass);
+            await secondaryApp.auth().signOut();
+            
+            // Write to the admins collection using the PRIMARY app (which is logged in as an admin)
+            await db.collection('admins').doc(email).set({
+                first: first,
+                last: last,
+                role: 'admin'
+            });
+
+            // Clear form
+            document.getElementById('new-admin-first').value = '';
+            document.getElementById('new-admin-last').value = '';
+            document.getElementById('new-admin-email').value = '';
+            document.getElementById('new-admin-pass').value = '';
+            document.getElementById('new-admin-confirm-pass').value = '';
+            
+            errorEl.innerText = "Administrator account successfully provisioned!";
+            errorEl.style.color = "var(--success)";
+        } catch (error) {
+            errorEl.innerText = error.message;
+            errorEl.style.color = "var(--danger)";
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Provision Administrator <i class="ph ph-shield-plus"></i>';
+        }
+    },
+
+    deleteAdmin: async function(email) {
+        if(email === this.currentUser.email) {
+            alert("You cannot delete your own admin account.");
+            return;
+        }
+        if(confirm(`Are you sure you want to revoke admin access for ${email}? NOTE: This only removes their dashboard access. Their Firebase Auth account must be deleted manually if required.`)) {
+            try {
+                await db.collection('admins').doc(email).delete();
+            } catch(e) {
+                alert("Error deleting admin: " + e.message);
+            }
+        }
+    },
+
+    renderAdminsList: function(adminsList) {
+        const container = document.getElementById('admin-list');
+        if (!container) return;
+        
+        if (adminsList.length === 0) {
+            container.innerHTML = '<div class="text-muted" style="text-align: center; padding: 20px;">No administrators found.</div>';
+            return;
+        }
+
+        let html = '';
+        adminsList.forEach(admin => {
+            const isMe = admin.email === this.currentUser.email;
+            html += `
+                <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; background: var(--bg-base); display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <i class="ph ph-shield-check" style="font-size: 32px; color: var(--primary);"></i>
+                        <div>
+                            <div style="font-weight: 600; font-size: 15px; margin-bottom: 2px; color: var(--text-main);">${admin.first} ${admin.last} ${isMe ? '<span style="font-size: 11px; background: var(--primary); color: white; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">You</span>' : ''}</div>
+                            <div style="font-size: 13px; color: var(--text-muted);">${admin.email}</div>
+                        </div>
+                    </div>
+                    ${!isMe ? `<button class="btn" style="background: transparent; color: var(--danger); border: 1px solid var(--danger); height: fit-content; padding: 8px 12px; border-radius: var(--radius-sm);" onclick="adminApp.deleteAdmin('${admin.email}')" title="Revoke Admin Access">
+                        <i class="ph ph-trash"></i>
+                    </button>` : ''}
+                </div>
+            `;
+        });
+        container.innerHTML = html;
     },
 
     addFaq: async function() {
