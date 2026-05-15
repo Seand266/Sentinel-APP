@@ -398,3 +398,112 @@ input:checked + .toggle-slider {
 input:checked + .toggle-slider:before {
     transform: translateX(20px);
 }
+
+/* ============================================
+   RESPONSIVE BREAKPOINTS
+   ============================================ */
+
+/* --- Tablet & Desktop: Rep App expands beyond phone shell --- */
+@media (min-width: 768px) {
+    /* Let the rep app fill available width on bigger screens */
+    body {
+        align-items: flex-start;
+    }
+
+    #app {
+        max-width: 100%;
+        box-shadow: none;
+    }
+
+    /* Two-column device grid on tablet+ */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    /* Wider login box */
+    .login-box {
+        max-width: 420px;
+    }
+
+    /* More breathing room in main content */
+    main {
+        padding: 0 32px 120px;
+    }
+
+    /* Bottom nav spreads wider */
+    .bottom-nav {
+        left: 32px;
+        right: 32px;
+    }
+
+    /* Option cards side by side */
+    .options-grid.multi {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* Admin: wider content area */
+    #admin-content main {
+        padding: 0 32px 40px;
+    }
+}
+
+/* --- Desktop: 3-column device grid, wider admin tables --- */
+@media (min-width: 1100px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    main {
+        padding: 0 48px 120px;
+    }
+
+    #admin-content main {
+        padding: 0 48px 40px;
+    }
+
+    .view-header h2 {
+        font-size: 28px;
+    }
+}
+
+/* --- Small Mobile: tighten spacing on very small screens --- */
+@media (max-width: 380px) {
+    .view-header h2 { font-size: 20px; }
+    .logic-question { font-size: 16px; }
+    .options-grid.multi { grid-template-columns: 1fr; }
+    .btn { padding: 12px 16px; font-size: 14px; }
+    .card { padding: 16px; }
+}
+
+/* --- Admin: responsive table & header fixes --- */
+@media (max-width: 768px) {
+    /* Admin tab buttons wrap on small screens */
+    .admin-tabs {
+        gap: 8px !important;
+    }
+    .admin-tabs .btn {
+        font-size: 12px !important;
+        padding: 8px 10px !important;
+    }
+
+    /* Stack search bar and buttons vertically */
+    .view-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px;
+    }
+
+    /* Tables scroll horizontally rather than breaking layout */
+    .data-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Reduce padding in admin cards */
+    #admin-content main {
+        padding: 0 12px 40px;
+    }
+}
+
