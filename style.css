@@ -88,13 +88,14 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    min-height: 100%;
     padding: 20px;
     text-align: center;
 }
 .login-box {
     width: 100%;
-    max-width: 340px;
+    max-width: 360px;
+    padding: 28px;
 }
 .auth-tabs {
     display: flex;
@@ -350,7 +351,7 @@ input:focus, select:focus, textarea:focus {
 }
 .search-bar input {
     padding-left: 48px;
-    background: rgba(0,0,0,0.4);
+    background: var(--bg-base);
 }
 .search-bar i {
     position: absolute;
@@ -400,6 +401,50 @@ input:checked + .toggle-slider:before {
 }
 
 /* ============================================
+   ADMIN PORTAL SPECIFICS
+   ============================================ */
+
+/* Nav tab buttons — compact, not full action-button size */
+.admin-tab-btn {
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    border-radius: var(--radius-sm) !important;
+    white-space: nowrap;
+}
+
+/* Active tab uses primary styling, inactive uses subtle ghost */
+.admin-tab-btn.secondary {
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+}
+.admin-tab-btn.secondary:hover {
+    background: var(--bg-base) !important;
+    color: var(--text-main) !important;
+    transform: none !important;
+}
+.admin-tab-btn.primary {
+    box-shadow: 0 1px 4px rgba(0,100,224,0.2) !important;
+}
+
+/* View header row (title + action button) */
+#admin-content .view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+/* Sign-out icon in admin header */
+#admin-content .user-profile i {
+    font-size: 26px;
+}
+
+/* ============================================
    RESPONSIVE BREAKPOINTS
    ============================================ */
 
@@ -424,7 +469,7 @@ input:checked + .toggle-slider:before {
 
     /* Wider login box */
     .login-box {
-        max-width: 420px;
+        max-width: 480px;
     }
 
     /* More breathing room in main content */
@@ -453,6 +498,10 @@ input:checked + .toggle-slider:before {
 @media (min-width: 1100px) {
     .dashboard-grid {
         grid-template-columns: repeat(3, 1fr);
+    }
+
+    .login-box {
+        max-width: 520px;
     }
 
     main {
