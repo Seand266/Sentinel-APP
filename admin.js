@@ -22,30 +22,65 @@ const adminApp = {
 
     // --- Logger Service ---
     logger: {
+        // Generated once per page load — groups all events from a single visit
+        sessionId: 'sess_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now(),
+        _lastViewTime: Date.now(),
+        _lastView: null,
+
         logView: function(viewId) {
-            this._writeLog('page_view', `Admin: ${viewId}`);
+            const now = Date.now();
+            const timeOnPrev = this._lastView ? Math.round((now - this._lastViewTime) / 1000) : null;
+            this._lastViewTime = now;
+            this._lastView = viewId;
+            const extra = timeOnPrev !== null ? { timeOnPreviousViewSec: timeOnPrev, previousView: this._lastView } : {};
+            this._writeLog('page_view', `Admin: ${viewId}`, extra);
         },
         logEvent: function(eventName, details = {}) {
             this._writeLog('interaction', eventName, details);
         },
+        _getEnrichedMeta: function() {
+            // Platform from userAgent
+            const ua = navigator.userAgent;
+            let platform = 'Unknown';
+            if (/iPhone|iPad|iPod/.test(ua)) platform = 'iOS';
+            else if (/Android/.test(ua)) platform = 'Android';
+            else if (/Windows/.test(ua)) platform = 'Windows';
+            else if (/Mac OS/.test(ua)) platform = 'macOS';
+            else if (/Linux/.test(ua)) platform = 'Linux';
+
+            // Connection type (not available on all browsers)
+            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            const connectionType = conn ? (conn.effectiveType || conn.type || 'unknown') : 'unavailable';
+
+            return {
+                sessionId: this.sessionId,
+                platform: platform,
+                screenResolution: `${screen.width}x${screen.height}`,
+                language: navigator.language || 'unknown',
+                connectionType: connectionType,
+                referrer: document.referrer || 'direct'
+            };
+        },
         _writeLog: async function(type, viewOrEvent, details = {}) {
             try {
                 const userId = adminApp.currentUser ? adminApp.currentUser.email : "anonymous_admin";
+                const enriched = this._getEnrichedMeta();
                 const logData = {
                     timestamp: new Date().toISOString(),
                     view: viewOrEvent,
                     userId: userId,
                     userAgent: navigator.userAgent,
                     type: type,
+                    ...enriched,
                     ...details
                 };
                 
-                // Fire and forget (non-blocking async)
-                db.collection('view_logs').add(logData).catch(() => {
-                    // Fail silently to prevent interrupting user experience
+                console.debug('[Logger] Writing log:', logData);
+                db.collection('view_logs').add(logData).catch((err) => {
+                    console.error('[Logger] Firestore write FAILED:', err.message, logData);
                 });
             } catch (err) {
-                // Failsafe catch block
+                console.error('[Logger] Internal error in _writeLog:', err);
             }
         }
     },
@@ -1086,44 +1121,46 @@ const adminApp = {
             else if (log.type === 'interaction') typeBadge = '<span class="status-indicator warning">Interaction</span>';
             else typeBadge = `<span class="status-indicator">${log.type}</span>`;
 
-            // Simplify user agent for display
-            const rawUa = log.userAgent || '';
-            const uaLower = rawUa.toLowerCase();
-            let uaSimple = 'Unknown Device';
-            
-            if (uaLower.includes('iphone') || uaLower.includes('ipad') || uaLower.includes('ipod')) {
-                uaSimple = 'iOS Device';
-            } else if (uaLower.includes('android')) {
-                uaSimple = 'Android Device';
-            } else if (uaLower.includes('mac os') || uaLower.includes('macintosh')) {
-                uaSimple = 'Mac';
-            } else if (uaLower.includes('windows')) {
-                uaSimple = 'Windows PC';
-            } else if (uaLower.includes('linux')) {
-                uaSimple = 'Linux PC';
-            } else if (rawUa) {
-                uaSimple = 'Other Device';
-            }
+            // Build structured metadata display for all known fields
+            const pill = (label, value, color = 'var(--text-muted)') =>
+                value ? `<div style="display:flex; gap:6px; margin-bottom:4px; font-size:12px; align-items:baseline;">
+                    <span style="color:var(--text-muted); min-width:110px; font-size:11px;">${label}</span>
+                    <span style="color:${color}; font-weight:500; word-break:break-all;">${value}</span>
+                </div>` : '';
 
-            // Format additional details
-            const details = {...log};
-            delete details.id; delete details.timestamp; delete details.type; delete details.view; delete details.userId; delete details.userAgent;
-            
-            let metadataHtml = `
-                <div style="font-weight: 600; margin-bottom: 4px;">${uaSimple}</div>
-                <div style="color: var(--text-muted); font-size: 11px; margin-bottom: 4px; word-break: break-all; line-height: 1.2;">${log.userAgent}</div>
-            `;
-            
-            if (Object.keys(details).length > 0) {
-                const prettyJson = JSON.stringify(details, null, 2)
-                    .replace(/\\n/g, '<br>')
-                    .replace(/ "/g, '&nbsp;&nbsp;"');
-                metadataHtml += `
-                    <div style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 6px; border-radius: var(--radius-sm); font-family: monospace; font-size: 11px; color: var(--primary); white-space: pre-wrap;">
-                        ${prettyJson}
+            // Platform icon
+            const platIcons = { iOS: 'ph-device-mobile', Android: 'ph-device-mobile', Windows: 'ph-desktop', macOS: 'ph-apple-logo', Linux: 'ph-linux-logo' };
+            const platIcon = platIcons[log.platform] || 'ph-question';
+
+            // Connection badge color
+            const connColor = log.connectionType === '4g' || log.connectionType === 'wifi' ? 'var(--success)'
+                : log.connectionType === '3g' ? 'var(--warning)'
+                : log.connectionType === 'slow-2g' || log.connectionType === '2g' ? 'var(--danger)'
+                : 'var(--text-muted)';
+
+            // Any remaining unknown extra fields
+            const knownFields = new Set(['id','timestamp','type','view','userId','userAgent','sessionId','platform','screenResolution','language','connectionType','referrer','timeOnPreviousViewSec','previousView']);
+            const extras = Object.entries(log).filter(([k]) => !knownFields.has(k));
+
+            const metadataHtml = `
+                <div style="border:1px solid var(--border); border-radius:var(--radius-md); padding:10px; background:var(--bg-base);">
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--border);">
+                        <i class="ph ${platIcon}" style="font-size:16px; color:var(--primary);"></i>
+                        <span style="font-weight:600; font-size:13px;">${log.platform || 'Unknown'}</span>
+                        <span style="color:var(--text-muted); font-size:11px; margin-left:4px;">${log.screenResolution || ''}</span>
                     </div>
-                `;
-            }
+                    ${pill('Session ID', log.sessionId ? log.sessionId.substring(0,18) + '…' : null)}
+                    ${pill('Connection', log.connectionType, connColor)}
+                    ${pill('Language', log.language)}
+                    ${pill('Referrer', log.referrer || 'direct')}
+                    ${log.timeOnPreviousViewSec != null ? pill('Prev. View Time', `${log.timeOnPreviousViewSec}s on "${log.previousView}"`) : ''}
+                    ${extras.map(([k,v]) => pill(k, typeof v === 'object' ? JSON.stringify(v) : String(v))).join('')}
+                    <details style="margin-top:6px;">
+                        <summary style="font-size:11px; color:var(--text-muted); cursor:pointer;">Raw User Agent</summary>
+                        <div style="font-size:10px; color:var(--text-muted); word-break:break-all; margin-top:4px; line-height:1.4;">${log.userAgent || 'N/A'}</div>
+                    </details>
+                </div>
+            `;
 
             html += `
                 <tr>
@@ -1131,7 +1168,7 @@ const adminApp = {
                     <td>${typeBadge}</td>
                     <td style="font-weight: 500;">${log.view}</td>
                     <td>${log.userId}</td>
-                    <td style="font-size: 13px; max-width: 300px;">${metadataHtml}</td>
+                    <td style="font-size: 13px; max-width: 320px;">${metadataHtml}</td>
                 </tr>
             `;
         });

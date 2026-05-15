@@ -58,30 +58,65 @@ const app = {
 
     // --- Logger Service ---
     logger: {
+        // Generated once per page load — groups all events from a single visit
+        sessionId: 'sess_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now(),
+        _lastViewTime: Date.now(),
+        _lastView: null,
+
         logView: function(viewId) {
-            this._writeLog('page_view', `App: ${viewId}`);
+            const now = Date.now();
+            const timeOnPrev = this._lastView ? Math.round((now - this._lastViewTime) / 1000) : null;
+            this._lastViewTime = now;
+            this._lastView = viewId;
+            const extra = timeOnPrev !== null ? { timeOnPreviousViewSec: timeOnPrev, previousView: this._lastView } : {};
+            this._writeLog('page_view', `App: ${viewId}`, extra);
         },
         logEvent: function(eventName, details = {}) {
             this._writeLog('interaction', eventName, details);
         },
+        _getEnrichedMeta: function() {
+            // Platform from userAgent
+            const ua = navigator.userAgent;
+            let platform = 'Unknown';
+            if (/iPhone|iPad|iPod/.test(ua)) platform = 'iOS';
+            else if (/Android/.test(ua)) platform = 'Android';
+            else if (/Windows/.test(ua)) platform = 'Windows';
+            else if (/Mac OS/.test(ua)) platform = 'macOS';
+            else if (/Linux/.test(ua)) platform = 'Linux';
+
+            // Connection type (not available on all browsers)
+            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            const connectionType = conn ? (conn.effectiveType || conn.type || 'unknown') : 'unavailable';
+
+            return {
+                sessionId: this.sessionId,
+                platform: platform,
+                screenResolution: `${screen.width}x${screen.height}`,
+                language: navigator.language || 'unknown',
+                connectionType: connectionType,
+                referrer: document.referrer || 'direct'
+            };
+        },
         _writeLog: async function(type, viewOrEvent, details = {}) {
             try {
                 const userId = app.auth.currentUser ? app.auth.currentUser.email : "anonymous";
+                const enriched = this._getEnrichedMeta();
                 const logData = {
                     timestamp: new Date().toISOString(),
                     view: viewOrEvent,
                     userId: userId,
                     userAgent: navigator.userAgent,
                     type: type,
+                    ...enriched,
                     ...details
                 };
                 
-                // Fire and forget (non-blocking async)
-                db.collection('view_logs').add(logData).catch(() => {
-                    // Fail silently to prevent interrupting user experience
+                console.debug('[Logger] Writing log:', logData);
+                db.collection('view_logs').add(logData).catch((err) => {
+                    console.error('[Logger] Firestore write FAILED:', err.message, logData);
                 });
             } catch (err) {
-                // Failsafe catch block
+                console.error('[Logger] Internal error in _writeLog:', err);
             }
         }
     },
