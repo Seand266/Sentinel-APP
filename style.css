@@ -444,6 +444,29 @@ input:checked + .toggle-slider:before {
     font-size: 26px;
 }
 
+/* Admin dashboard sections must stack vertically, not use the rep-app multi-col grid */
+#admin-content .dashboard-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px !important;
+    grid-template-columns: unset !important;
+}
+
+/* Tab row: left-align, don't stretch buttons to fill row */
+.admin-tabs {
+    justify-content: flex-start !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* View header: align title baseline with button center */
+#admin-content .view-header {
+    align-items: center !important;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px !important;
+}
+
 /* ============================================
    RESPONSIVE BREAKPOINTS
    ============================================ */
