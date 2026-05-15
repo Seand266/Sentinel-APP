@@ -401,9 +401,14 @@
                                     <input type="text" id="search-logs-input" placeholder="Search by User, Event, or Device..." onkeyup="adminApp.filterLogsTable()">
                                 </div>
                             </div>
-                            <button class="btn primary" onclick="adminApp.exportLogsToCSV()">
-                                <i class="ph ph-microsoft-excel-logo"></i> Export Logs
-                            </button>
+                            <div style="display:flex; gap:10px;">
+                                <button class="btn primary" onclick="adminApp.exportLogsToCSV()">
+                                    <i class="ph ph-microsoft-excel-logo"></i> Export Logs
+                                </button>
+                                <button class="btn" id="btn-delete-logs" style="background:transparent; border:1px solid var(--danger); color:var(--danger);" onclick="adminApp.deleteAllLogs()">
+                                    <i class="ph ph-trash"></i> Delete All Logs
+                                </button>
+                            </div>
                         </div>
                         <div class="data-table-container">
                             <table id="logs-table">
@@ -454,6 +459,6 @@
           });
        })();
     </script>
-    <script src="admin.js?v=4"></script>
+    <script src="admin.js?v=5"></script>
 </body>
 </html>

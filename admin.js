@@ -1211,6 +1211,36 @@ const adminApp = {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    },
+
+    deleteAllLogs: async function() {
+        const count = this.logsCache.length;
+        if (count === 0) {
+            alert('There are no logs to delete.');
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to permanently delete all ${count} log entries? This cannot be undone.`)) return;
+
+        const btn = document.getElementById('btn-delete-logs');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Deleting...';
+
+        try {
+            // Firestore doesn't support collection-level deletes; delete each doc by ID
+            const deletePromises = this.logsCache.map(log =>
+                db.collection('view_logs').doc(log.id).delete().catch(e => {
+                    console.error('Failed to delete log:', log.id, e.message);
+                })
+            );
+            await Promise.all(deletePromises);
+            // The onSnapshot listener will auto-refresh the table to empty
+        } catch (err) {
+            alert('Error deleting logs: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-trash"></i> Delete All Logs';
+        }
     }
 };
 
