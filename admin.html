@@ -286,33 +286,78 @@
 
                 <!-- Replacements Tab -->
                 <div id="admin-view-replacements" style="display: none;">
-                    <div class="card glass-panel" style="padding: 0;">
-                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <h3 style="font-size: 16px; margin: 0; color: var(--primary);"><i class="ph ph-arrows-clockwise"></i> Device Replacement Requests</h3>
-                                <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;">Real-time requests submitted by representatives.</p>
+                    <div class="dashboard-grid">
+                        <!-- Create Replacement Form -->
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 4px; color: var(--primary);"><i class="ph ph-arrows-clockwise"></i> Create Replacement Request</h3>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">Fill out this form on behalf of a rep. Submitting will log the request and open a pre-filled email to <strong>JDikio.Meta@2020companies.com</strong>.</p>
+                            <div class="form-group mb-10">
+                                <label>Representative Name <span style="color:var(--danger);">*</span></label>
+                                <input type="text" id="admin-replace-rep" placeholder="e.g. Jane Smith">
                             </div>
-                            <button class="btn" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 13px;" onclick="adminApp.clearReplacements()">
-                                <i class="ph ph-trash"></i> Clear All
+                            <div class="form-group mb-10">
+                                <label>Representative Email</label>
+                                <input type="email" id="admin-replace-email" placeholder="e.g. jsmith@2020companies.com">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Device Name <span style="color:var(--danger);">*</span></label>
+                                <input type="text" id="admin-replace-device" placeholder="e.g. Meta Quest 3">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Serial Number <span style="color:var(--danger);">*</span></label>
+                                <input type="text" id="admin-replace-sn" placeholder="e.g. 1WMHH2A0X12345">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Reason for Replacement</label>
+                                <select id="admin-replace-reason">
+                                    <option value="Hardware Damage">Hardware Damage</option>
+                                    <option value="Screen Damage">Screen Damage</option>
+                                    <option value="Battery Failure">Battery Failure</option>
+                                    <option value="Defective &mdash; Won't Power On">Defective &mdash; Won't Power On</option>
+                                    <option value="Lost / Stolen">Lost / Stolen</option>
+                                    <option value="Missing Accessories">Missing Accessories</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-20">
+                                <label>Additional Notes</label>
+                                <textarea id="admin-replace-notes" rows="2" placeholder="Optional details..."></textarea>
+                            </div>
+                            <div class="validation-message mb-10" id="admin-replace-error"></div>
+                            <button class="btn primary full-width" onclick="adminApp.submitAdminReplacement()">
+                                <i class="ph ph-paper-plane-right"></i> Log Request &amp; Draft Email
                             </button>
                         </div>
-                        <div class="data-table-container" style="margin-bottom: 0;">
-                            <table id="replacements-table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Representative</th>
-                                        <th>Device</th>
-                                        <th>Serial Number</th>
-                                        <th>Reason</th>
-                                        <th>Notes</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Populated by admin.js -->
-                                </tbody>
-                            </table>
+
+                        <!-- Pending Requests Table -->
+                        <div class="card glass-panel" style="padding: 0;">
+                            <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <h3 style="font-size: 16px; margin: 0;">Pending Request Log</h3>
+                                    <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;">Real-time queue of all logged replacement requests.</p>
+                                </div>
+                                <button class="btn" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 13px;" onclick="adminApp.clearReplacements()">
+                                    <i class="ph ph-trash"></i> Clear All
+                                </button>
+                            </div>
+                            <div class="data-table-container" style="margin-bottom: 0;">
+                                <table id="replacements-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Representative</th>
+                                            <th>Device</th>
+                                            <th>Serial Number</th>
+                                            <th>Reason</th>
+                                            <th>Notes</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Populated by admin.js -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -495,6 +540,6 @@
           });
        })();
     </script>
-    <script src="admin.js?v=6"></script>
+    <script src="admin.js?v=7"></script>
 </body>
 </html>

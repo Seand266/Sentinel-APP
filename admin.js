@@ -606,9 +606,45 @@ const adminApp = {
 
     draftReplacementEmail: function(repName, device, sn, reason, notes) {
         const subject = `Device Replacement Request — ${repName} (${device})`;
-        const body = `Hi Operations team,\n\nWe have a device replacement request from one of our representatives and would appreciate your assistance.\n\n` +
+        const body = `Hi,\n\nWe have a device replacement request and would appreciate your assistance.\n\n` +
                      `Representative: ${repName}\nDevice: ${device}\nSerial Number: ${sn}\nReason: ${reason}\nNotes: ${notes}\n\nWe have verified this request on our end.\n\nThank you!\n- Tech Support Team`;
-        window.location.href = `mailto:operationsupport@2020companies.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        window.location.href = `mailto:JDikio.Meta@2020companies.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    },
+
+    submitAdminReplacement: function() {
+        const repName  = document.getElementById('admin-replace-rep').value.trim();
+        const repEmail = document.getElementById('admin-replace-email').value.trim();
+        const device   = document.getElementById('admin-replace-device').value.trim();
+        const sn       = document.getElementById('admin-replace-sn').value.trim();
+        const reason   = document.getElementById('admin-replace-reason').value;
+        const notes    = document.getElementById('admin-replace-notes').value.trim();
+        const errorEl  = document.getElementById('admin-replace-error');
+
+        if (!repName || !device || !sn) {
+            errorEl.innerText = 'Rep Name, Device, and Serial Number are required.';
+            return;
+        }
+        errorEl.innerText = '';
+
+        db.collection('replacement_requests').add({
+            date: new Date().toISOString(),
+            repName: repName,
+            repEmail: repEmail || 'N/A',
+            device: device,
+            serialNumber: sn,
+            reason: reason,
+            notes: notes || 'N/A',
+            store: 'Admin Entry'
+        }).then(() => {
+            // Clear form
+            document.getElementById('admin-replace-rep').value = '';
+            document.getElementById('admin-replace-email').value = '';
+            document.getElementById('admin-replace-device').value = '';
+            document.getElementById('admin-replace-sn').value = '';
+            document.getElementById('admin-replace-notes').value = '';
+            // Auto-draft the email
+            this.draftReplacementEmail(repName, device, sn, reason, notes || 'N/A');
+        }).catch(e => alert('Failed to save request: ' + e.message));
     },
 
     updateStats: function(data) {

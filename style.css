@@ -328,7 +328,6 @@ input:focus, select:focus, textarea:focus {
 .btn.disabled, .btn:disabled {
     opacity: 0.45;
     cursor: not-allowed !important;
-    pointer-events: none;
     box-shadow: none;
     transform: none !important;
 }
@@ -343,7 +342,7 @@ input:focus, select:focus, textarea:focus {
 }
 .nav-item {
     display: flex; flex-direction: column; align-items: center; gap: 4px;
-    color: var(--text-muted); cursor: pointer; transition: color 0.2s; width: 25%;
+    color: var(--text-muted); cursor: pointer; transition: color 0.2s; width: 33%;
 }
 .nav-item i { font-size: 24px; transition: transform 0.2s; }
 .nav-item span { font-size: 11px; font-weight: 500; }
