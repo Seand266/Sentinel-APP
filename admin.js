@@ -285,7 +285,7 @@ const adminApp = {
             const baseDevices = [
                 { id: 'vr', name: 'Meta Quest 3', icon: 'ph-headset' },
                 { id: 'vr3s', name: 'Meta Quest 3S', icon: 'ph-headset' },
-                { id: 'glasses', name: 'Ray-Ban Meta', icon: 'ph-sunglasses' },
+                { id: 'glasses', name: 'Ray-Ban Meta Gen 2', icon: 'ph-sunglasses' },
                 { id: 'tablet', name: 'Samsung Tablet', icon: 'ph-device-tablet' },
                 { id: 'demo', name: 'Samsung Demo Device', icon: 'ph-device-mobile' }
             ];
@@ -1065,7 +1065,7 @@ const adminApp = {
         let models = {
             'Meta Quest 3': { op: 0, issue: 0, broken: 0 },
             'Meta Quest 3S': { op: 0, issue: 0, broken: 0 },
-            'Ray-Ban Meta': { op: 0, issue: 0, broken: 0 },
+            'Ray-Ban Meta Gen 2': { op: 0, issue: 0, broken: 0 },
             'Samsung Tablet': { op: 0, issue: 0, broken: 0 },
             'Samsung Demo Device': { op: 0, issue: 0, broken: 0 }
         };
@@ -1088,7 +1088,7 @@ const adminApp = {
 
             checkStatus('vr', 'Meta Quest 3');
             checkStatus('vr3s', 'Meta Quest 3S');
-            checkStatus('glasses', 'Ray-Ban Meta');
+            checkStatus('glasses', 'Ray-Ban Meta Gen 2');
             checkStatus('tablet', 'Samsung Tablet');
             checkStatus('demo', 'Samsung Demo Device');
 
@@ -1172,7 +1172,7 @@ const adminApp = {
             return;
         }
 
-        const headers = "Representative Name,Email,Retailer,Meta Quest 3,Meta Quest 3S,Ray-Ban Meta,Samsung Tablet,Samsung Demo Device,Additional Smart Glasses\n";
+        const headers = "Representative Name,Email,Retailer,Meta Quest 3,Meta Quest 3S,Ray-Ban Meta Gen 2,Samsung Tablet,Samsung Demo Device,Additional Smart Glasses\n";
         let csvRows = [];
 
         userEmails.forEach(email => {

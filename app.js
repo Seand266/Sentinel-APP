@@ -15,7 +15,7 @@ const logicTreeNodes = {
     rma_dead: { resolution: "Unrecoverable hardware failure (No Power/Boot). Prepare device for RMA.", type: "error" },
 
     // --- Smart Glasses Tree ---
-    glasses_start: { question: "What is the primary issue with the Ray-Ban Meta Smart Glasses?", options: [ { label: "Won't Turn On / Power", next: "glasses_power", icon: "ph-power" }, { label: "Bluetooth / Pairing Issues", next: "glasses_bt", icon: "ph-bluetooth-connected" }, { label: "Meta AI Not Responding", next: "glasses_ai", icon: "ph-chat-circle-dots" }, { label: "Camera / Audio Issues", next: "glasses_media", icon: "ph-camera" }, { label: "Physical Damage", next: "physical", icon: "ph-hammer" } ] },
+    glasses_start: { question: "What is the primary issue with the Ray-Ban Meta Gen 2 Smart Glasses?", options: [ { label: "Won't Turn On / Power", next: "glasses_power", icon: "ph-power" }, { label: "Bluetooth / Pairing Issues", next: "glasses_bt", icon: "ph-bluetooth-connected" }, { label: "Meta AI Not Responding", next: "glasses_ai", icon: "ph-chat-circle-dots" }, { label: "Camera / Audio Issues", next: "glasses_media", icon: "ph-camera" }, { label: "Physical Damage", next: "physical", icon: "ph-hammer" } ] },
     glasses_power: { question: "Is the charging case fully charged and the glasses seated properly inside?", options: [ { label: "Yes, case has power", next: "glasses_power_reset", icon: "ph-check" }, { label: "No, case LED is off", next: "glasses_power_case", icon: "ph-x" } ] },
     glasses_power_case: { question: "Plug the case into a wall charger. Does the case LED light up?", options: [ { label: "Yes", resolution: "Let case and glasses charge for 30 minutes. Issue Resolved.", type: "success" }, { label: "No", resolution: "Hardware Failure: Charging Case. RMA required.", type: "error" } ] },
     glasses_power_reset: { question: "Attempt a hard restart: Slide the power switch off, wait 5s, slide it back on. Does the white LED pulse?", options: [ { label: "Yes", resolution: "Issue Resolved via Hard Restart.", type: "success" }, { label: "No", next: "glasses_factory_reset", icon: "ph-arrows-clockwise" } ] },
@@ -38,7 +38,7 @@ const logicTreeNodes = {
 const deviceMappings = {
     'vr': 'Meta Quest 3',
     'vr3s': 'Meta Quest 3S',
-    'glasses': 'Ray-Ban Meta',
+    'glasses': 'Ray-Ban Meta Gen 2',
     'tablet': 'Samsung Tablet',
     'demo': 'Samsung Demo Device'
 };
