@@ -326,6 +326,18 @@ const app = {
                 if (card) {
                     card.style.display = toggles[k] !== false ? 'flex' : 'none';
                 }
+
+                // SN Gate: disable Report Status button if no SN set
+                const reportBtn = document.getElementById(`report-btn-${k}`);
+                if (reportBtn) {
+                    if (sns[k]) {
+                        reportBtn.classList.remove('disabled');
+                        reportBtn.title = '';
+                    } else {
+                        reportBtn.classList.add('disabled');
+                        reportBtn.title = 'Set your serial number first';
+                    }
+                }
             });
 
             // Load Dynamic Devices
@@ -336,6 +348,7 @@ const app = {
             dynDevices.forEach(device => {
                 const status = statuses[device.key] || 'Operational';
                 const sn = sns[device.key] ? `SN: ${sns[device.key]} <i class="ph ph-pencil-simple"></i>` : `SN: Click to set <i class="ph ph-pencil-simple"></i>`;
+                const hasSN = !!sns[device.key];
                 
                 let statusClass = 'online';
                 if (status === 'Having Issues') statusClass = 'warning';
@@ -353,15 +366,21 @@ const app = {
                         <div class="device-status">
                             <span class="status-indicator ${statusClass}" id="status-${device.key}">${status}</span>
                         </div>
-                        <button class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('${device.model}', '${device.model}', 'status-${device.key}')">
-                            Report Status
-                        </button>
+                        <div style="display:flex; gap:8px;">
+                            <button id="report-btn-${device.key}" class="btn secondary full-width mt-10${hasSN ? '' : ' disabled'}" title="${hasSN ? '' : 'Set your serial number first'}" onclick="app.dashboard.openReportModal('${device.model}', '${device.model}', 'status-${device.key}')">
+                                Report Status
+                            </button>
+                            <button class="btn secondary mt-10" style="padding:10px 12px;" title="Request Replacement" onclick="app.replacements.open('${device.key}', '${device.model}')">
+                                <i class="ph ph-arrows-clockwise"></i>
+                            </button>
+                        </div>
                     </div>
                 `;
                 grid.insertAdjacentHTML('beforeend', cardHtml);
             });
             
             app.intake.populateDeviceSelect();
+            app.replacements.populateDeviceSelect();
         },
 
         editSN: function(key, deviceName) {
@@ -466,6 +485,13 @@ const app = {
         },
 
         openReportModal: function(deviceType, modelName, statusElementId) {
+            // SN Gate: require a serial number before allowing a status report
+            const key = statusElementId.replace('status-', '');
+            const sns = app.auth.currentUser.sns || {};
+            if (!sns[key]) {
+                this.editSN(key, modelName);
+                return;
+            }
             this.currentDevice = { type: deviceType, model: modelName, elementId: statusElementId };
             document.getElementById('modal-device-name').innerText = `${deviceType} - ${modelName}`;
             document.getElementById('report-notes').value = "";
@@ -837,6 +863,115 @@ const app = {
             
             document.getElementById('reason').value = "";
             alert(`Credential Reset Request for ${system} has been submitted to the Admin Dashboard!`);
+        }
+    },
+
+    // --- Device Replacement Requests ---
+    replacements: {
+        open: function(deviceKey, deviceModel) {
+            // Pre-fill device dropdown
+            const select = document.getElementById('replace-device-select');
+            if (select) {
+                select.value = deviceKey + '||' + deviceModel;
+                this._updateSNPreview();
+            }
+            document.getElementById('replace-reason').value = 'Hardware Damage';
+            document.getElementById('replace-notes').value = '';
+            document.getElementById('replace-error').innerText = '';
+            document.getElementById('replacement-modal').classList.remove('hidden');
+        },
+
+        openBlank: function() {
+            this.populateDeviceSelect();
+            document.getElementById('replace-reason').value = 'Hardware Damage';
+            document.getElementById('replace-notes').value = '';
+            document.getElementById('replace-error').innerText = '';
+            this._updateSNPreview();
+            document.getElementById('replacement-modal').classList.remove('hidden');
+        },
+
+        close: function() {
+            document.getElementById('replacement-modal').classList.add('hidden');
+        },
+
+        populateDeviceSelect: function() {
+            const select = document.getElementById('replace-device-select');
+            if (!select || !app.auth.currentUser) return;
+
+            const toggles = app.auth.currentUser.toggles || {};
+            const sns = app.auth.currentUser.sns || {};
+            const dynDevices = app.auth.currentUser.dynamicDevices || [];
+
+            const deviceMappingsLocal = [
+                { key: 'vr',      name: 'Meta Quest 3' },
+                { key: 'vr3s',    name: 'Meta Quest 3S' },
+                { key: 'glasses', name: 'Ray-Ban Meta' },
+                { key: 'tablet',  name: 'Samsung Tablet' },
+                { key: 'demo',    name: 'Samsung Demo Device' }
+            ];
+
+            let html = '<option value="">Select a device...</option>';
+            deviceMappingsLocal.forEach(d => {
+                if (toggles[d.key] !== false) {
+                    html += `<option value="${d.key}||${d.name}">${d.name}${sns[d.key] ? ' — SN: ' + sns[d.key] : ''}</option>`;
+                }
+            });
+            dynDevices.forEach(d => {
+                if (toggles[d.key] !== false) {
+                    html += `<option value="${d.key}||${d.model}">${d.model}${sns[d.key] ? ' — SN: ' + sns[d.key] : ''}</option>`;
+                }
+            });
+            select.innerHTML = html;
+        },
+
+        _updateSNPreview: function() {
+            const select = document.getElementById('replace-device-select');
+            const snPreview = document.getElementById('replace-sn-preview');
+            if (!select || !snPreview) return;
+            const val = select.value;
+            if (!val) { snPreview.innerText = ''; return; }
+            const key = val.split('||')[0];
+            const sns = app.auth.currentUser.sns || {};
+            snPreview.innerText = sns[key] ? `Serial Number: ${sns[key]}` : 'Serial Number: Not set';
+        },
+
+        submit: function() {
+            const select = document.getElementById('replace-device-select');
+            const reason = document.getElementById('replace-reason').value;
+            const notes = document.getElementById('replace-notes').value.trim();
+            const errorEl = document.getElementById('replace-error');
+
+            if (!select.value) { errorEl.innerText = 'Please select a device.'; return; }
+
+            const parts = select.value.split('||');
+            const deviceKey = parts[0];
+            const deviceModel = parts[1];
+            const sns = app.auth.currentUser.sns || {};
+            const sn = sns[deviceKey] || 'Not Set';
+            const repName = `${app.auth.currentUser.first} ${app.auth.currentUser.last}`;
+            const store = app.auth.currentUser.store || 'N/A';
+
+            db.collection('replacement_requests').add({
+                date: new Date().toISOString(),
+                repName: repName,
+                repEmail: app.auth.currentUser.email,
+                device: deviceModel,
+                serialNumber: sn,
+                reason: reason,
+                notes: notes || 'N/A',
+                store: store
+            });
+
+            if (typeof emailjs !== 'undefined') {
+                emailjs.send("service_syb4oto", "template_0tx65cr", {
+                    ticket_type: "Device Replacement Request",
+                    rep_name: repName,
+                    details: `Device: ${deviceModel}\nSerial Number: ${sn}\nReason: ${reason}\nNotes: ${notes || 'N/A'}`
+                }).catch(e => console.error(e));
+            }
+
+            this.close();
+            alert(`Replacement request for ${deviceModel} submitted to the Admin Dashboard!`);
         }
     }
 };

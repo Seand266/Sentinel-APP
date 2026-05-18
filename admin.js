@@ -220,6 +220,14 @@ const adminApp = {
             this.loadResets();
         });
 
+        // Real-time listener for replacement requests
+        db.collection('replacement_requests').onSnapshot((snapshot) => {
+            const replacements = [];
+            snapshot.forEach(doc => replacements.push({ id: doc.id, ...doc.data() }));
+            this.replacementsCache = replacements.sort((a, b) => new Date(b.date) - new Date(a.date));
+            this.loadReplacements();
+        });
+
         // Real-time listener for FAQs
         db.collection('faqs').onSnapshot((snapshot) => {
             const faqs = [];
@@ -535,6 +543,74 @@ const adminApp = {
         }
     },
 
+    loadReplacements: function() {
+        const replacements = this.replacementsCache || [];
+        const tbody = document.querySelector('#replacements-table tbody');
+        if (!tbody) return;
+        let html = '';
+
+        if (replacements.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;" class="text-muted">No pending replacement requests.</td></tr>';
+            return;
+        }
+
+        replacements.forEach(row => {
+            const d = new Date(row.date);
+            const dateStr = `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+            const escapedDevice = (row.device || '').replace(/'/g, "\\'");
+            const escapedSN = (row.serialNumber || 'Not Set').replace(/'/g, "\\'");
+            const escapedRep = (row.repName || '').replace(/'/g, "\\'");
+            const escapedReason = (row.reason || '').replace(/'/g, "\\'");
+            const escapedNotes = (row.notes || 'N/A').replace(/'/g, "\\'");
+
+            html += `
+                <tr>
+                    <td class="text-muted">${dateStr}</td>
+                    <td style="font-weight: 500;">${row.repName || 'Unknown'}<br><span style="font-size:11px; color:var(--text-muted);">${row.repEmail || ''}</span></td>
+                    <td>${row.device || 'Unknown'}</td>
+                    <td><code style="font-size:12px; background:var(--bg-base); padding:2px 6px; border-radius:4px;">${row.serialNumber || 'Not Set'}</code></td>
+                    <td>${row.reason || 'N/A'}</td>
+                    <td class="text-muted" style="max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${(row.notes||'').replace(/"/g,'&quot;')}">${row.notes || 'N/A'}</td>
+                    <td style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="btn primary" style="padding:6px 10px; font-size:12px;" onclick="adminApp.draftReplacementEmail('${escapedRep}', '${escapedDevice}', '${escapedSN}', '${escapedReason}', '${escapedNotes}')">
+                            <i class="ph ph-envelope-simple"></i> Draft
+                        </button>
+                        <button class="btn" style="padding:6px 10px; font-size:12px; background:transparent; border:1px solid var(--success); color:var(--success);" onclick="adminApp.resolveReplacement('${row.id}')">
+                            <i class="ph ph-check-circle"></i> Resolve
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    },
+
+    resolveReplacement: async function(requestId) {
+        if (confirm('Mark this replacement request as resolved and remove it from the queue?')) {
+            try {
+                await db.collection('replacement_requests').doc(requestId).delete();
+            } catch(e) {
+                alert('Failed to resolve: ' + e.message);
+            }
+        }
+    },
+
+    clearReplacements: function() {
+        if (confirm('Are you sure you want to clear ALL pending replacement requests?')) {
+            (this.replacementsCache || []).forEach(async req => {
+                await db.collection('replacement_requests').doc(req.id).delete();
+            });
+        }
+    },
+
+    draftReplacementEmail: function(repName, device, sn, reason, notes) {
+        const subject = `Device Replacement Request — ${repName} (${device})`;
+        const body = `Hi Operations team,\n\nWe have a device replacement request from one of our representatives and would appreciate your assistance.\n\n` +
+                     `Representative: ${repName}\nDevice: ${device}\nSerial Number: ${sn}\nReason: ${reason}\nNotes: ${notes}\n\nWe have verified this request on our end.\n\nThank you!\n- Tech Support Team`;
+        window.location.href = `mailto:operationsupport@2020companies.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    },
+
     updateStats: function(data) {
         const stats = { operational: 0, issues: 0, broken: 0 };
         data.forEach(r => {
@@ -721,6 +797,7 @@ const adminApp = {
         document.getElementById(`tab-btn-${tabId}`).classList.add('primary');
 
         document.getElementById('admin-view-data').style.display = 'none';
+        document.getElementById('admin-view-replacements').style.display = 'none';
         document.getElementById('admin-view-analytics').style.display = 'none';
         document.getElementById('admin-view-faq').style.display = 'none';
         document.getElementById('admin-view-admins').style.display = 'none';

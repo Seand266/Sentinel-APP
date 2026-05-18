@@ -83,6 +83,7 @@
 
                 <div class="admin-tabs" style="display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-wrap: wrap;">
                     <button class="btn primary admin-tab-btn" id="tab-btn-data" onclick="adminApp.switchAdminTab('data')"><i class="ph ph-table"></i> Data Grids</button>
+                    <button class="btn secondary admin-tab-btn" id="tab-btn-replacements" onclick="adminApp.switchAdminTab('replacements')"><i class="ph ph-arrows-clockwise"></i> Replacements</button>
                     <button class="btn secondary admin-tab-btn" id="tab-btn-analytics" onclick="adminApp.switchAdminTab('analytics')"><i class="ph ph-chart-pie-slice"></i> Fleet Analytics</button>
                     <button class="btn secondary admin-tab-btn" id="tab-btn-faq" onclick="adminApp.switchAdminTab('faq')"><i class="ph ph-book-open-text"></i> FAQ Management</button>
                     <button class="btn secondary admin-tab-btn" id="tab-btn-admins" onclick="adminApp.switchAdminTab('admins')"><i class="ph ph-user-plus"></i> Admin Management</button>
@@ -283,6 +284,39 @@
                 </div> <!-- End of dashboard-grid -->
                 </div> <!-- End of admin-view-data -->
 
+                <!-- Replacements Tab -->
+                <div id="admin-view-replacements" style="display: none;">
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="font-size: 16px; margin: 0; color: var(--primary);"><i class="ph ph-arrows-clockwise"></i> Device Replacement Requests</h3>
+                                <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;">Real-time requests submitted by representatives.</p>
+                            </div>
+                            <button class="btn" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 13px;" onclick="adminApp.clearReplacements()">
+                                <i class="ph ph-trash"></i> Clear All
+                            </button>
+                        </div>
+                        <div class="data-table-container" style="margin-bottom: 0;">
+                            <table id="replacements-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Representative</th>
+                                        <th>Device</th>
+                                        <th>Serial Number</th>
+                                        <th>Reason</th>
+                                        <th>Notes</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by admin.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="admin-view-analytics" style="display: none;">
                     <!-- Global Stats (Historical) -->
                     <h3 style="font-size: 16px; margin-bottom: 12px; color: var(--text-main);">All-Time Historical Reports</h3>
@@ -461,6 +495,6 @@
           });
        })();
     </script>
-    <script src="admin.js?v=5"></script>
+    <script src="admin.js?v=6"></script>
 </body>
 </html>
