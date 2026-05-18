@@ -70,6 +70,13 @@ service cloud.firestore {
       allow create: if isCompanyEmail() || isAdmin();
       allow read, delete: if isAdmin();
     }
+
+    // --- Replacement Requests Collection ---
+    // Only admins can create, read, and delete replacement requests.
+    match /replacement_requests/{reqId} {
+      allow create, read, delete: if isAdmin();
+    }
+
     // --- View Logs Collection ---
     match /view_logs/{logId} {
       // Anyone can log views, but must match a strict schema
