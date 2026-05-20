@@ -26,9 +26,8 @@ service cloud.firestore {
 
     // --- Admins Collection ---
     match /admins/{adminId} {
-      // Any authenticated user can read (needed for admin.js to verify role on login)
-      allow read: if isAuthenticated();
-      // Client-side admin creation is restricted to existing admins only.
+      // Users can only read their own admin doc, admins can read all
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.token.email == adminId);
       allow create, update, delete: if isAdmin();
     }
 
@@ -72,20 +71,29 @@ service cloud.firestore {
     }
 
     // --- Replacement Requests Collection ---
-    // Only admins can create, read, and delete replacement requests.
     match /replacement_requests/{reqId} {
-      allow create, read, delete: if isAdmin();
+      // Reps can create requests for themselves. Admins can create, read, and delete requests.
+      allow create: if (isCompanyEmail() && request.resource.data.repEmail == request.auth.token.email) || isAdmin();
+      allow read, delete: if isAdmin();
     }
 
     // --- View Logs Collection ---
     match /view_logs/{logId} {
-      // Anyone can log views, but must match a strict schema
+      // Anyone can log views matching the schema, but userId must match the logged-in session email
       allow create: if request.resource.data.keys().hasAll(['timestamp', 'view', 'userId', 'userAgent'])
                     && request.resource.data.timestamp is string
                     && request.resource.data.view is string
                     && request.resource.data.userId is string
-                    && request.resource.data.userAgent is string;
+                    && request.resource.data.userAgent is string
+                    && request.resource.data.userId == (request.auth != null ? request.auth.token.email : 'anonymous');
       allow read, update, delete: if isAdmin();
+    }
+
+    // --- Secure Meta AI Credentials Collection ---
+    match /credentials/{email} {
+      allow read: if (isAuthenticated() && request.auth.token.email == email) || isAdmin();
+      allow create: if (isAuthenticated() && request.auth.token.email == email) || isAdmin();
+      allow update, delete: if isAdmin();
     }
   }
 }

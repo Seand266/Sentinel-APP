@@ -366,9 +366,14 @@ const app = {
                         <div class="device-status">
                             <span class="status-indicator ${statusClass}" id="status-${device.key}">${status}</span>
                         </div>
-                        <button id="report-btn-${device.key}" class="btn secondary full-width mt-10${hasSN ? '' : ' disabled'}" title="${hasSN ? '' : 'Set your serial number first'}" onclick="app.dashboard.openReportModal('${device.model}', '${device.model}', 'status-${device.key}')">
-                            Report Status
-                        </button>
+                        <div style="display: flex; gap: 8px; margin-top: 10px; width: 100%;">
+                            <button id="report-btn-${device.key}" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;${hasSN ? '' : ' opacity: 0.45; cursor: not-allowed;'}" title="${hasSN ? '' : 'Set your serial number first'}" onclick="${hasSN ? `app.dashboard.openReportModal('${device.model}', '${device.model}', 'status-${device.key}')` : ''}">
+                                Report Status
+                            </button>
+                            <button id="replace-btn-${device.key}" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('${device.key}', '${device.model}')">
+                                Replace
+                            </button>
+                        </div>
                     </div>
                 `;
                 grid.insertAdjacentHTML('beforeend', cardHtml);
@@ -536,6 +541,95 @@ const app = {
             this.loadDashboardState();
             this.closeReportModal();
             alert("Status reported successfully!");
+        },
+
+        openReplacementModal: function(deviceKey, deviceName) {
+            const sns = app.auth.currentUser.sns || {};
+            const sn = sns[deviceKey] || "";
+            
+            document.getElementById('replace-device-key').value = deviceKey;
+            document.getElementById('replace-device-name').value = deviceName;
+            
+            const snInput = document.getElementById('replace-device-sn');
+            snInput.value = sn;
+            
+            if (sn) {
+                snInput.disabled = true;
+                snInput.style.background = 'rgba(255, 255, 255, 0.05)';
+                snInput.style.cursor = 'not-allowed';
+            } else {
+                snInput.disabled = false;
+                snInput.style.background = 'var(--bg-input)';
+                snInput.style.cursor = 'text';
+            }
+            
+            document.getElementById('replace-notes').value = "";
+            document.getElementById('replacement-modal').classList.remove('hidden');
+        },
+
+        closeReplacementModal: function() {
+            document.getElementById('replacement-modal').classList.add('hidden');
+        },
+
+        submitReplacementRequest: async function() {
+            const deviceKey = document.getElementById('replace-device-key').value;
+            const deviceName = document.getElementById('replace-device-name').value;
+            const sn = document.getElementById('replace-device-sn').value.trim();
+            const reason = document.getElementById('replace-reason-select').value;
+            const notes = document.getElementById('replace-notes').value.trim();
+            
+            if (!sn) {
+                alert("Please enter the Serial Number of the device to replace.");
+                return;
+            }
+            
+            const repName = app.auth.currentUser ? `${app.auth.currentUser.first} ${app.auth.currentUser.last}` : "Unknown Rep";
+            const repEmail = app.auth.currentUser ? app.auth.currentUser.email : "";
+            
+            try {
+                // 1. Submit the replacement request to Firestore
+                await db.collection('replacement_requests').add({
+                    date: new Date().toISOString(),
+                    repName: repName,
+                    repEmail: repEmail,
+                    device: deviceName,
+                    serialNumber: sn,
+                    reason: reason,
+                    notes: notes || "No additional notes provided."
+                });
+                
+                // 2. If the user didn't have an SN stored for this device, save it to their profile now
+                if (!app.auth.currentUser.sns) app.auth.currentUser.sns = {};
+                if (!app.auth.currentUser.sns[deviceKey]) {
+                    app.auth.currentUser.sns[deviceKey] = sn;
+                    app.logDeviceHealth(sn, 'Assigned', 'SN Assigned via Replacement Request');
+                }
+                
+                // 3. Mark the device status as 'Broken/Unusable' locally and save
+                if (!app.auth.currentUser.statuses) app.auth.currentUser.statuses = {};
+                app.auth.currentUser.statuses[deviceKey] = 'Broken/Unusable';
+                
+                await app.auth._saveCurrentUser();
+                
+                // 4. Log the device replacement request
+                app.logDeviceHealth(sn, 'Broken/Unusable', 'Replacement Requested');
+                
+                // 5. Send notification email via EmailJS
+                if (typeof emailjs !== 'undefined') {
+                    emailjs.send("service_syb4oto", "template_0tx65cr", {
+                        ticket_type: "Replacement Request",
+                        rep_name: repName,
+                        details: `Device: ${deviceName}\nSerial Number: ${sn}\nReason: ${reason}\nNotes: ${notes || "None"}`
+                    }).catch(e => console.error("EmailJS error:", e));
+                }
+                
+                this.loadDashboardState();
+                this.closeReplacementModal();
+                alert(`Replacement request for ${deviceName} submitted successfully!`);
+            } catch (err) {
+                console.error("Replacement request failed:", err);
+                alert("Failed to submit replacement request. Error: " + err.message);
+            }
         }
     },
 
@@ -765,10 +859,31 @@ const app = {
             error.style.display = 'none';
 
             try {
-                // Using api.codetabs.com as the CORS proxy to bypass browser and IP blocks
+                // 1. Try fetching directly and securely from Firestore `/credentials/{email}`
+                const myEmail = app.auth.currentUser.email.toLowerCase();
+                const credDoc = await db.collection('credentials').doc(myEmail).get();
+                
+                if (credDoc.exists) {
+                    const data = credDoc.data();
+                    emailSpan.innerText = data.metaEmail;
+                    passSpan.innerText = data.metaPass;
+                    
+                    localStorage.setItem('meta_ai_cached_creds', JSON.stringify({
+                        user: app.auth.currentUser.email,
+                        metaEmail: data.metaEmail,
+                        metaPass: data.metaPass
+                    }));
+                    
+                    loading.style.display = 'none';
+                    content.style.display = 'block';
+                    return; // Successfully loaded from Firestore!
+                }
+                
+                // 2. Self-Healing Fallback: Document doesn't exist, try Google Sheets
+                console.log("[Self-Healing] Credentials doc not found in Firestore. Falling back to Google Sheet...");
                 const targetUrl = 'https://docs.google.com/spreadsheets/d/1SSgl60xVl_i-7nx23ch4jADCq9wZQmUR1ObRVDXDEpk/export?format=csv';
                 const response = await fetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl));
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (!response.ok) throw new Error(`Google Sheet fetch failed (HTTP ${response.status})`);
                 const text = await response.text();
                 const lines = text.split('\n');
                 
@@ -776,6 +891,8 @@ const app = {
                 const myLast = app.auth.currentUser.last.toLowerCase();
                 
                 let found = false;
+                let mEmail = "";
+                let mPass = "";
                 
                 for(let i=1; i<lines.length; i++) {
                     const line = lines[i].trim();
@@ -796,38 +913,48 @@ const app = {
                         const last = p[2].replace(/"/g, '').trim().toLowerCase();
                         
                         if (first === myFirst && last === myLast) {
-                            const mEmail = p[6].replace(/"/g, '').trim();
-                            const mPass = p[10].replace(/"/g, '').trim();
-                            emailSpan.innerText = mEmail;
-                            passSpan.innerText = mPass;
-                            
-                            localStorage.setItem('meta_ai_cached_creds', JSON.stringify({
-                                user: app.auth.currentUser.email,
-                                metaEmail: mEmail,
-                                metaPass: mPass
-                            }));
-                            
+                            mEmail = p[6].replace(/"/g, '').trim();
+                            mPass = p[10].replace(/"/g, '').trim();
                             found = true;
                             break;
                         }
                     }
                 }
                 
-                loading.style.display = 'none';
                 if (found) {
+                    // 3. Immediately save to Firestore `/credentials/{email}` for future secure access
+                    await db.collection('credentials').doc(myEmail).set({
+                        metaEmail: mEmail,
+                        metaPass: mPass,
+                        migratedAt: new Date().toISOString(),
+                        migratedBy: "self-healing"
+                    });
+                    console.log("[Self-Healing] Successfully migrated credentials to Firestore.");
+                    
+                    emailSpan.innerText = mEmail;
+                    passSpan.innerText = mPass;
+                    
+                    localStorage.setItem('meta_ai_cached_creds', JSON.stringify({
+                        user: app.auth.currentUser.email,
+                        metaEmail: mEmail,
+                        metaPass: mPass
+                    }));
+                    
+                    loading.style.display = 'none';
                     content.style.display = 'block';
                 } else {
+                    loading.style.display = 'none';
                     if (!cached || cached.user !== app.auth.currentUser.email) {
-                        error.innerText = "No Meta AI credentials found for your name.";
+                        error.innerText = "No Meta AI credentials found for your account. Please contact an Admin.";
                         error.style.display = 'block';
                         content.style.display = 'none';
                     }
                 }
             } catch (err) {
                 loading.style.display = 'none';
-                console.error(err);
+                console.error("[Credentials Lookup Error]", err);
                 if (!cached || cached.user !== app.auth.currentUser.email) {
-                    error.innerText = "Failed to load credentials from database. Error: " + err.message;
+                    error.innerText = "Failed to load credentials from secure database. Error: " + err.message;
                     error.style.display = 'block';
                 }
             }

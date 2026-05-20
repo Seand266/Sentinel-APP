@@ -115,9 +115,14 @@
                             <div class="device-status">
                                 <span class="status-indicator online" id="status-vr">Operational</span>
                             </div>
-                            <button id="report-btn-vr" class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Meta Quest 3', 'Meta Quest 3', 'status-vr')">
-                                Report Status
-                            </button>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button id="report-btn-vr" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;" onclick="app.dashboard.openReportModal('Meta Quest 3', 'Meta Quest 3', 'status-vr')">
+                                    Report Status
+                                </button>
+                                <button id="replace-btn-vr" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('vr', 'Meta Quest 3')">
+                                    Replace
+                                </button>
+                            </div>
                         </div>
 
                         <div class="card glass-panel device-card" id="card-vr3s">
@@ -131,9 +136,14 @@
                             <div class="device-status">
                                 <span class="status-indicator online" id="status-vr3s">Operational</span>
                             </div>
-                            <button id="report-btn-vr3s" class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Meta Quest 3S', 'Meta Quest 3S', 'status-vr3s')">
-                                Report Status
-                            </button>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button id="report-btn-vr3s" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;" onclick="app.dashboard.openReportModal('Meta Quest 3S', 'Meta Quest 3S', 'status-vr3s')">
+                                    Report Status
+                                </button>
+                                <button id="replace-btn-vr3s" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('vr3s', 'Meta Quest 3S')">
+                                    Replace
+                                </button>
+                            </div>
                         </div>
 
                         <div class="card glass-panel device-card" id="card-glasses">
@@ -147,9 +157,14 @@
                             <div class="device-status">
                                 <span class="status-indicator online" id="status-glasses">Operational</span>
                             </div>
-                            <button id="report-btn-glasses" class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Ray-Ban Meta Gen 2', 'Ray-Ban Meta Gen 2', 'status-glasses')">
-                                Report Status
-                            </button>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button id="report-btn-glasses" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;" onclick="app.dashboard.openReportModal('Ray-Ban Meta Gen 2', 'Ray-Ban Meta Gen 2', 'status-glasses')">
+                                    Report Status
+                                </button>
+                                <button id="replace-btn-glasses" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('glasses', 'Ray-Ban Meta Gen 2')">
+                                    Replace
+                                </button>
+                            </div>
                         </div>
 
                         <div class="card glass-panel device-card" id="card-tablet">
@@ -163,9 +178,14 @@
                             <div class="device-status">
                                 <span class="status-indicator online" id="status-tablet">Operational</span>
                             </div>
-                            <button id="report-btn-tablet" class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Samsung Tablet', 'Samsung Tablet', 'status-tablet')">
-                                Report Status
-                            </button>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button id="report-btn-tablet" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;" onclick="app.dashboard.openReportModal('Samsung Tablet', 'Samsung Tablet', 'status-tablet')">
+                                    Report Status
+                                </button>
+                                <button id="replace-btn-tablet" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('tablet', 'Samsung Tablet')">
+                                    Replace
+                                </button>
+                            </div>
                         </div>
 
                         <div class="card glass-panel device-card" id="card-demo">
@@ -179,9 +199,14 @@
                             <div class="device-status">
                                 <span class="status-indicator online" id="status-demo">Operational</span>
                             </div>
-                            <button id="report-btn-demo" class="btn secondary full-width mt-10" onclick="app.dashboard.openReportModal('Samsung Demo Device', 'Samsung Demo Device', 'status-demo')">
-                                Report Status
-                            </button>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button id="report-btn-demo" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;" onclick="app.dashboard.openReportModal('Samsung Demo Device', 'Samsung Demo Device', 'status-demo')">
+                                    Report Status
+                                </button>
+                                <button id="replace-btn-demo" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('demo', 'Samsung Demo Device')">
+                                    Replace
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <button class="btn secondary full-width mt-20" onclick="app.dashboard.openAddDeviceModal()" style="border-style: dashed;">
@@ -442,6 +467,50 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Replacement Request Modal -->
+            <div id="replacement-modal" class="modal hidden">
+                <div class="modal-backdrop" onclick="app.dashboard.closeReplacementModal()"></div>
+                <div class="modal-content glass-panel animate-fade-in" style="max-width: 480px; width: 90%;">
+                    <h3>Request Device Replacement</h3>
+                    <p class="text-muted mb-20" style="font-size: 13px;">Please review and complete the details for this replacement request.</p>
+                    
+                    <input type="hidden" id="replace-device-key">
+                    
+                    <div class="form-group mb-10">
+                        <label>Device Model</label>
+                        <input type="text" id="replace-device-name" disabled style="background: rgba(255, 255, 255, 0.05); cursor: not-allowed;">
+                    </div>
+                    
+                    <div class="form-group mb-10">
+                        <label>Serial Number</label>
+                        <input type="text" id="replace-device-sn" placeholder="Enter Serial Number" style="width: 100%;">
+                    </div>
+                    
+                    <div class="form-group mb-10">
+                        <label>Reason for Replacement</label>
+                        <select id="replace-reason-select" style="width: 100%;">
+                            <option value="Hardware Damage">Hardware Damage</option>
+                            <option value="Screen Damage">Screen Damage</option>
+                            <option value="Battery Failure">Battery Failure</option>
+                            <option value="Defective - Won't Power On">Defective - Won't Power On</option>
+                            <option value="Lost/Stolen">Lost / Stolen</option>
+                            <option value="Missing Accessories">Missing Accessories</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group mb-20">
+                        <label>Additional Notes (Optional)</label>
+                        <textarea id="replace-notes" rows="3" placeholder="Explain the reason for replacement, symptoms, or shipping instructions..." style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border); padding: 10px; background: var(--bg-input); color: var(--text-main); font-family: inherit; font-size: 13px; resize: none;"></textarea>
+                    </div>
+                    
+                    <div class="wizard-actions">
+                        <button class="btn secondary" onclick="app.dashboard.closeReplacementModal()">Cancel</button>
+                        <button class="btn primary" onclick="app.dashboard.submitReplacementRequest()">Submit Request</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -451,7 +520,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyBE8yKvBzEYUhF9qkXxDHK533rJlXHR6KA",
+            apiKey: "AIzaSyBt-h7sFmI9MiO6hWZcXEGPEdlRxat0S9g",
             authDomain: "sentinel-f77ba.firebaseapp.com",
             projectId: "sentinel-f77ba",
             storageBucket: "sentinel-f77ba.firebasestorage.app",
@@ -467,7 +536,7 @@
     <script type="text/javascript">
        (function(){
           emailjs.init({
-            publicKey: "OSnwHaVORnAhqi4rp",
+             publicKey: "9nLywE3ododpCdTWS",
           });
        })();
     </script>

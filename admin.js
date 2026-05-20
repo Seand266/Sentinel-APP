@@ -394,6 +394,163 @@ const adminApp = {
         }
     },
 
+    migrateCredentials: async function() {
+        const btn = document.getElementById('btn-migrate-creds');
+        const statusEl = document.getElementById('migration-status');
+        const progressContainer = document.getElementById('migration-progress-container');
+        const progressBar = document.getElementById('migration-progress-bar');
+        const progressText = document.getElementById('migration-progress-text');
+        const progressPct = document.getElementById('migration-progress-pct');
+        const logEl = document.getElementById('migration-log');
+
+        if (!btn || !statusEl || !progressContainer || !progressBar || !progressText || !progressPct || !logEl) {
+            console.error('[Migration] Critical UI elements missing.');
+            return;
+        }
+
+        // Disable button, initialize UI
+        btn.disabled = true;
+        statusEl.innerText = "Status: Processing...";
+        progressContainer.style.display = 'block';
+        logEl.style.display = 'block';
+        logEl.innerHTML = '';
+        progressBar.style.width = '0%';
+        progressText.innerText = 'Initializing...';
+        progressPct.innerText = '0%';
+
+        function addLog(msg, type = 'info') {
+            let color = 'var(--text-main)';
+            if (type === 'error') color = 'var(--danger)';
+            else if (type === 'success') color = 'var(--success)';
+            else if (type === 'warning') color = '#ffaa00';
+            
+            logEl.innerHTML += `<div style="color: ${color}; margin-bottom: 4px;">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        addLog('Starting secure credentials migration...', 'info');
+
+        try {
+            const activeReps = Object.keys(this.usersCache || {});
+            addLog(`Found ${activeReps.length} active representative accounts in Firestore.`, 'info');
+
+            const targetUrl = 'https://docs.google.com/spreadsheets/d/1SSgl60xVl_i-7nx23ch4jADCq9wZQmUR1ObRVDXDEpk/export?format=csv';
+            addLog('Fetching credentials spreadsheet via secure proxy...', 'info');
+            
+            const response = await fetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl));
+            if (!response.ok) {
+                throw new Error(`Google Sheet fetch failed (HTTP ${response.status})`);
+            }
+            
+            const text = await response.text();
+            const lines = text.split('\n');
+            const rowCount = lines.length - 1;
+            addLog(`Successfully loaded spreadsheet. Found ${rowCount} rows to process.`, 'success');
+
+            let migratedCount = 0;
+            let skippedCount = 0;
+            let errorCount = 0;
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) {
+                    skippedCount++;
+                    continue;
+                }
+
+                // CSV row parsing
+                let p = [];
+                let inQ = false;
+                let curr = "";
+                for (let c of line) {
+                    if (c === '"') inQ = !inQ;
+                    else if (c === ',' && !inQ) { p.push(curr); curr = ""; }
+                    else curr += c;
+                }
+                p.push(curr);
+
+                if (p.length > 10) {
+                    const first = p[1].replace(/"/g, '').trim().toLowerCase();
+                    const last = p[2].replace(/"/g, '').trim().toLowerCase();
+                    const metaEmail = p[6].replace(/"/g, '').trim();
+                    const metaPass = p[10].replace(/"/g, '').trim();
+
+                    if (!first || !last || !metaEmail || !metaPass) {
+                        skippedCount++;
+                        addLog(`[SKIP] Empty names/credentials on row ${i + 1}`, 'warning');
+                        continue;
+                    }
+
+                    // Look up registered user email matching first & last name
+                    let matchedEmail = null;
+                    for (const email of activeReps) {
+                        const u = this.usersCache[email];
+                        if (u && u.first && u.last && u.first.toLowerCase() === first && u.last.toLowerCase() === last) {
+                            matchedEmail = email.toLowerCase();
+                            break;
+                        }
+                    }
+
+                    if (matchedEmail) {
+                        try {
+                            await db.collection('credentials').doc(matchedEmail).set({
+                                metaEmail: metaEmail,
+                                metaPass: metaPass,
+                                migratedAt: new Date().toISOString(),
+                                migratedBy: "admin-bulk-migration"
+                            });
+                            migratedCount++;
+                            addLog(`[SUCCESS] Migrated credentials for ${p[1]} ${p[2]} -> ${matchedEmail}`, 'success');
+                        } catch (err) {
+                            errorCount++;
+                            addLog(`[ERROR] Failed to write to Firestore for ${p[1]} ${p[2]} (${matchedEmail}): ${err.message}`, 'error');
+                        }
+                    } else {
+                        skippedCount++;
+                        addLog(`[SKIP] Registered representative account not found for: "${p[1]} ${p[2]}"`, 'warning');
+                    }
+                } else {
+                    skippedCount++;
+                    addLog(`[SKIP] Row ${i + 1} has insufficient columns (length ${p.length})`, 'warning');
+                }
+
+                // Update progress indicators
+                const pct = Math.round((i / rowCount) * 100);
+                progressBar.style.width = pct + '%';
+                progressPct.innerText = pct + '%';
+                progressText.innerText = `Processing row ${i} of ${rowCount}...`;
+            }
+
+            // Final update
+            progressBar.style.width = '100%';
+            progressPct.innerText = '100%';
+            progressText.innerText = 'Bulk migration completed.';
+            
+            if (errorCount === 0) {
+                statusEl.innerText = `Status: Complete! ${migratedCount} migrated, ${skippedCount} skipped.`;
+                statusEl.style.color = 'var(--success)';
+            } else {
+                statusEl.innerText = `Status: Complete with warnings. ${migratedCount} migrated, ${skippedCount} skipped, ${errorCount} errors.`;
+                statusEl.style.color = 'var(--danger)';
+            }
+
+            addLog('============================================', 'info');
+            addLog(`Migration Finished!`, 'success');
+            addLog(`- Successfully Migrated to Firestore: ${migratedCount}`, 'success');
+            addLog(`- Skipped Rows (Unregistered/Header/Empty): ${skippedCount}`, 'warning');
+            addLog(`- Errors: ${errorCount}`, errorCount > 0 ? 'error' : 'success');
+            addLog('Safe to Lock Down Sheet! You can now set the Google Sheet to "Restricted" in Google Drive.', 'success');
+
+        } catch (err) {
+            console.error('[Migration] Failed:', err);
+            addLog(`[CRITICAL ERROR] Migration halted: ${err.message}`, 'error');
+            statusEl.innerText = "Status: Failed";
+            statusEl.style.color = 'var(--danger)';
+        } finally {
+            btn.disabled = false;
+        }
+    },
+
     updateDeviceStatus: async function(email, deviceId, newStatus) {
         try {
             const user = this.usersCache[email];
