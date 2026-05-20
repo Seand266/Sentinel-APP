@@ -194,12 +194,15 @@ const app = {
                     email: email,
                     date: new Date().toISOString()
                 });
-                if (typeof emailjs !== 'undefined') {
-                    emailjs.send("service_syb4oto", "template_0tx65cr", {
-                        ticket_type: "Account Reset Request",
-                        rep_name: email,
+                try {
+                    const sendSecureEmail = firebase.app().functions('us-central1').httpsCallable('sendSecureEmail');
+                    await sendSecureEmail({
+                        ticketType: "Account Reset Request",
+                        repName: email,
                         details: "User has requested a password reset/clear."
-                    }).catch(e => console.error(e));
+                    });
+                } catch (e) {
+                    console.error("Secure email dispatch failed:", e);
                 }
                 errorEl.innerText = "Account reset request sent! Please wait for an Admin to clear your account before trying to sign up again.";
                 errorEl.style.color = 'var(--success)';
@@ -528,12 +531,14 @@ const app = {
             const sn = (app.auth.currentUser.sns && app.auth.currentUser.sns[key]) ? app.auth.currentUser.sns[key] : 'Unknown';
             app.logDeviceHealth(sn, status, 'Report Submitted');
             
-            if (typeof emailjs !== 'undefined') {
-                emailjs.send("service_syb4oto", "template_0tx65cr", {
-                    ticket_type: "Standard Report",
-                    rep_name: repName,
+            try {
+                const sendSecureEmail = firebase.app().functions('us-central1').httpsCallable('sendSecureEmail');
+                sendSecureEmail({
+                    ticketType: "Standard Report",
                     details: `Device: ${this.currentDevice.type} (${this.currentDevice.model})\nStatus: ${status}\nNotes: ${notes}`
-                }).catch(e => console.error(e));
+                }).catch(e => console.error("Secure email dispatch failed:", e));
+            } catch (e) {
+                console.error("Secure email dispatch failed:", e);
             }
 
             this.loadDashboardState();
@@ -685,12 +690,14 @@ const app = {
                 notes: `Diagnostic Wizard Completed. Resolution: ${this.data.resolutionText}`
             });
 
-            if (typeof emailjs !== 'undefined') {
-                emailjs.send("service_syb4oto", "template_0tx65cr", {
-                    ticket_type: "Diagnostic Escalation",
-                    rep_name: repName,
+            try {
+                const sendSecureEmail = firebase.app().functions('us-central1').httpsCallable('sendSecureEmail');
+                sendSecureEmail({
+                    ticketType: "Diagnostic Escalation",
                     details: `Device: ${this.data.deviceType}\nResolution: ${this.data.resolutionText}\nCategory: ${category}\nStore: ${store}`
-                }).catch(e => console.error(e));
+                }).catch(e => console.error("Secure email dispatch failed:", e));
+            } catch (e) {
+                console.error("Secure email dispatch failed:", e);
             }
 
             // Find SN and push to device_health_logs
@@ -788,76 +795,29 @@ const app = {
                     return; // Successfully loaded from Firestore!
                 }
                 
-                // 2. Self-Healing Fallback: Document doesn't exist, try Google Sheets
-                console.log("[Self-Healing] Credentials doc not found in Firestore. Falling back to Google Sheet...");
-                const targetUrl = 'https://docs.google.com/spreadsheets/d/1SSgl60xVl_i-7nx23ch4jADCq9wZQmUR1ObRVDXDEpk/export?format=csv';
-                const response = await fetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl));
-                if (!response.ok) throw new Error(`Google Sheet fetch failed (HTTP ${response.status})`);
-                const text = await response.text();
-                const lines = text.split('\n');
+                // 2. Self-Healing Fallback: Document doesn't exist, call Cloud Function selfHealMyCredential
+                console.log("[Self-Healing] Credentials doc not found in Firestore. Calling selfHealMyCredential Cloud Function...");
+                const selfHealFunc = firebase.app().functions('us-central1').httpsCallable('selfHealMyCredential');
+                const result = await selfHealFunc();
                 
-                const myFirst = app.auth.currentUser.first.toLowerCase();
-                const myLast = app.auth.currentUser.last.toLowerCase();
+                const { success, metaEmail, metaPass } = result.data;
                 
-                let found = false;
-                let mEmail = "";
-                let mPass = "";
-                
-                for(let i=1; i<lines.length; i++) {
-                    const line = lines[i].trim();
-                    if(!line) continue;
-
-                    let p = [];
-                    let inQ = false;
-                    let curr = "";
-                    for(let c of line) {
-                        if(c === '"') inQ = !inQ;
-                        else if(c === ',' && !inQ) { p.push(curr); curr = ""; }
-                        else curr += c;
-                    }
-                    p.push(curr);
-
-                    if (p.length > 10) {
-                        const first = p[1].replace(/"/g, '').trim().toLowerCase();
-                        const last = p[2].replace(/"/g, '').trim().toLowerCase();
-                        
-                        if (first === myFirst && last === myLast) {
-                            mEmail = p[6].replace(/"/g, '').trim();
-                            mPass = p[10].replace(/"/g, '').trim();
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                
-                if (found) {
-                    // 3. Immediately save to Firestore `/credentials/{email}` for future secure access
-                    await db.collection('credentials').doc(myEmail).set({
-                        metaEmail: mEmail,
-                        metaPass: mPass,
-                        migratedAt: new Date().toISOString(),
-                        migratedBy: "self-healing"
-                    });
-                    console.log("[Self-Healing] Successfully migrated credentials to Firestore.");
+                if (success && metaEmail && metaPass) {
+                    console.log("[Self-Healing] Successfully self-healed credentials via Cloud Function.");
                     
-                    emailSpan.innerText = mEmail;
-                    passSpan.innerText = mPass;
+                    emailSpan.innerText = metaEmail;
+                    passSpan.innerText = metaPass;
                     
                     localStorage.setItem('meta_ai_cached_creds', JSON.stringify({
                         user: app.auth.currentUser.email,
-                        metaEmail: mEmail,
-                        metaPass: mPass
+                        metaEmail: metaEmail,
+                        metaPass: metaPass
                     }));
                     
                     loading.style.display = 'none';
                     content.style.display = 'block';
                 } else {
-                    loading.style.display = 'none';
-                    if (!cached || cached.user !== app.auth.currentUser.email) {
-                        error.innerText = "No Meta AI credentials found for your account. Please contact an Admin.";
-                        error.style.display = 'block';
-                        content.style.display = 'none';
-                    }
+                    throw new Error("Self-healing returned an invalid response.");
                 }
             } catch (err) {
                 loading.style.display = 'none';
@@ -883,12 +843,14 @@ const app = {
                 reason: reason
             });
             
-            if (typeof emailjs !== 'undefined') {
-                emailjs.send("service_syb4oto", "template_jbkqwyx", {
-                    ticket_type: "Credential Request",
-                    rep_name: repName,
+            try {
+                const sendSecureEmail = firebase.app().functions('us-central1').httpsCallable('sendSecureEmail');
+                sendSecureEmail({
+                    ticketType: "Credential Request",
                     details: `System: ${system}\nReason: ${reason}`
-                }).catch(e => console.error(e));
+                }).catch(e => console.error("Secure email dispatch failed:", e));
+            } catch (e) {
+                console.error("Secure email dispatch failed:", e);
             }
             
             document.getElementById('reason').value = "";

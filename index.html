@@ -461,6 +461,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-functions-compat.js"></script>
     <script>
         const firebaseConfig = {
             apiKey: "{{INDEX_FIREBASE_API_KEY}}",
@@ -475,14 +476,6 @@
         const auth = firebase.auth();
     </script>
     <!-- Scripts -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-    <script type="text/javascript">
-       (function(){
-          emailjs.init({
-             publicKey: "{{INDEX_EMAILJS_PUBLIC_KEY}}",
-          });
-       })();
-    </script>
     <script src="app.js?v=6"></script>
 </body>
 </html>

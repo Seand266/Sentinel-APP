@@ -547,10 +547,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-functions-compat.js"></script>
     <script>
         const firebaseConfig = {
-            apiKey: "{{ADMIN_FIREBASE_API_KEY}}",
+            apiKey: "AIzaSyBt-h7sFmI9MiO6hWZcXEGPEdlRxat0S9g",
             authDomain: "sentinel-f77ba.firebaseapp.com",
             projectId: "sentinel-f77ba",
             storageBucket: "sentinel-f77ba.firebasestorage.app",
@@ -560,6 +559,15 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
+    </script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+       (function(){
+          emailjs.init({
+             publicKey: "9nLywE3ododpCdTWS",
+          });
+       })();
+    </script>
     <script src="admin.js?v=7"></script>
 </body>
 </html>
