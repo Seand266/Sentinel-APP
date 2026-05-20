@@ -233,7 +233,7 @@ const app = {
                 // Fetch extended profile data from Firestore
                 const doc = await db.collection('users').doc(email).get();
                 if (doc.exists) {
-                    this._completeLogin(doc.data(), email);
+                    await this._completeLogin(doc.data(), email);
                 } else {
                     errorEl.innerText = "User profile not found in database.";
                 }
@@ -246,13 +246,35 @@ const app = {
         logout: async function() {
             await auth.signOut();
             this.currentUser = null;
+            
+            // Clear encryption session key and purge encrypted credentials cache
+            if (window.encryptionService) {
+                window.encryptionService.clearSessionKey();
+                window.encryptionService.clearEncrypted('meta_ai_cached_creds');
+            } else {
+                localStorage.removeItem('meta_ai_cached_creds');
+            }
+
             document.getElementById('view-auth').classList.add('flex-active');
             document.getElementById('main-ui').style.display = 'none';
             document.getElementById('login-pass').value = '';
         },
 
-        _completeLogin: function(userData, email) {
+        _completeLogin: async function(userData, email) {
             this.currentUser = { ...userData, email };
+            
+            // Derive cryptographic key for encryption and session caching
+            try {
+                const user = auth.currentUser;
+                if (user) {
+                    const key = await encryptionService.deriveKey(user.uid, email);
+                    encryptionService.setSessionKey(key);
+                    console.log("[Security] Cryptographic key derived from User UID successfully.");
+                }
+            } catch (err) {
+                console.error("[Security] Key derivation failed:", err);
+            }
+
             document.getElementById('view-auth').classList.remove('flex-active');
             document.getElementById('main-ui').style.display = 'flex';
             
@@ -260,7 +282,7 @@ const app = {
             document.getElementById('rep-name').value = `${userData.first} ${userData.last}`;
             
             app.dashboard.loadDashboardState();
-            app.credentials.loadMetaCredentials();
+            await app.credentials.loadMetaCredentials();
             app.intake.loadFaqs();
         },
 
@@ -269,10 +291,10 @@ const app = {
                 if (user) {
                     const doc = await db.collection('users').doc(user.email).get();
                     if (doc.exists) {
-                        this._completeLogin(doc.data(), user.email);
+                        await this._completeLogin(doc.data(), user.email);
                     }
                 } else {
-                    this.logout();
+                    await this.logout();
                 }
             });
         },
@@ -763,8 +785,22 @@ const app = {
             
             if(!loading) return; // Not on the page yet
             
-            // Check cache first for instant load
-            const cached = JSON.parse(localStorage.getItem('meta_ai_cached_creds') || "null");
+            // Check cache first for secure instant load
+            let cached = null;
+            if (window.encryptionService && encryptionService.hasSessionKey()) {
+                cached = await encryptionService.getDecrypted('meta_ai_cached_creds');
+            } else {
+                // Backward-compatible fallback (e.g. if key isn't derived yet during initialization)
+                try {
+                    const raw = localStorage.getItem('meta_ai_cached_creds');
+                    if (raw && !raw.includes('.')) {
+                        cached = JSON.parse(raw);
+                    }
+                } catch (e) {
+                    console.warn("[Security] Failed to parse raw cached credentials", e);
+                }
+            }
+
             if (cached && cached.user === app.auth.currentUser.email) {
                 emailSpan.innerText = cached.metaEmail;
                 passSpan.innerText = cached.metaPass;
@@ -787,11 +823,16 @@ const app = {
                     emailSpan.innerText = data.metaEmail;
                     passSpan.innerText = data.metaPass;
                     
-                    localStorage.setItem('meta_ai_cached_creds', JSON.stringify({
+                    const credData = {
                         user: app.auth.currentUser.email,
                         metaEmail: data.metaEmail,
                         metaPass: data.metaPass
-                    }));
+                    };
+                    if (window.encryptionService && encryptionService.hasSessionKey()) {
+                        await encryptionService.storeEncrypted('meta_ai_cached_creds', credData);
+                    } else {
+                        localStorage.setItem('meta_ai_cached_creds', JSON.stringify(credData));
+                    }
                     
                     loading.style.display = 'none';
                     content.style.display = 'block';
@@ -811,11 +852,16 @@ const app = {
                     emailSpan.innerText = metaEmail;
                     passSpan.innerText = metaPass;
                     
-                    localStorage.setItem('meta_ai_cached_creds', JSON.stringify({
+                    const credData = {
                         user: app.auth.currentUser.email,
                         metaEmail: metaEmail,
                         metaPass: metaPass
-                    }));
+                    };
+                    if (window.encryptionService && encryptionService.hasSessionKey()) {
+                        await encryptionService.storeEncrypted('meta_ai_cached_creds', credData);
+                    } else {
+                        localStorage.setItem('meta_ai_cached_creds', JSON.stringify(credData));
+                    }
                     
                     loading.style.display = 'none';
                     content.style.display = 'block';
