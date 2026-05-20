@@ -165,21 +165,8 @@ export const syncSpreadsheetCredentials = functions
     timeoutSeconds: 60,
     memory: "512MB",
   })
-  .https.onCall(async (data, context) => {
-    // A. ENFORCE ADMIN AUTHORIZATION
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "Authentication required.");
-    }
-
-    const uid = context.auth.uid;
-    const adminDoc = await db.collection("admins").doc(uid).get();
-    if (!adminDoc.exists) {
-      functions.logger.warn(`Unauthorized credentials sync attempt by UID: ${uid}`);
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Privileged access blocked. Only verified Administrators may trigger synchronization."
-      );
-    }
+  .https.onCall(
+    withRequiredRole("admin", async (data, context) => {
 
     try {
       // B. SECURE SERVER-SIDE SPREADSHEET RETRIEVAL
@@ -272,7 +259,7 @@ export const syncSpreadsheetCredentials = functions
         "Failed to synchronize spreadsheet credentials securely: " + err.message
       );
     }
-  });
+  }));
 
 /**
  * 3. SECURE REPRESENTATIVE CREDENTIAL SELF-HEALING
@@ -387,3 +374,319 @@ export const selfHealMyCredential = functions
       );
     }
   });
+
+/**
+ * ========================================================
+ * 🔒 CUSTOM CLAIMS, SECURITY VALIDATION, AND MIDDLEWARE
+ * ========================================================
+ */
+
+type CallableHandler<T, R> = (
+  data: T,
+  context: functions.https.CallableContext
+) => Promise<R> | R;
+
+/**
+ * Cloud Functions Authentication & Custom Claims Authorization Wrapper
+ */
+export function withRequiredRole<T, R>(
+  requiredRole: "admin" | "user",
+  handler: CallableHandler<T, R>
+): CallableHandler<T, R> {
+  return async (data: T, context: functions.https.CallableContext) => {
+    // 1. Verify standard session token
+    if (!context.auth) {
+      functions.logger.warn("Security Event: Anonymous attempt to invoke a secure function.");
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Authentication is required to access this endpoint."
+      );
+    }
+
+    const { uid, token } = context.auth;
+    const userEmail = token.email || "unknown";
+
+    // 2. Extract and match custom claims
+    const userRole = token.role;
+    const isAdmin = token.admin === true;
+
+    // Rules hierarchy:
+    // - If resource requires "admin", user must be explicitly marked as admin.
+    // - If resource requires "user", both "user" and "admin" roles are granted access.
+    const isAuthorized = 
+      (requiredRole === "admin" && isAdmin) ||
+      (requiredRole === "user" && (userRole === "user" || isAdmin));
+
+    if (!isAuthorized) {
+      functions.logger.error(
+        `Security Event: Unauthorized access attempt blocked. ` +
+        `UID: ${uid} (${userEmail}) tried to access a privileged path requiring '${requiredRole}'. ` +
+        `Current claims: { role: ${userRole}, admin: ${isAdmin} }`
+      );
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "Access denied. You do not possess the required privilege level."
+      );
+    }
+
+    return handler(data, context);
+  };
+}
+
+interface RegisterPayload {
+  email: string;
+  password?: string;
+  firstName: string;
+  lastName: string;
+  retailer: string;
+}
+
+/**
+ * SECURE SERVER-SIDE USER REGISTRATION AND CLAIMS PROVISIONING
+ */
+export const registerUser = functions
+  .runWith({
+    timeoutSeconds: 20,
+    memory: "256MB",
+  })
+  .https.onCall(async (data: RegisterPayload, context) => {
+    const { email, password, firstName, lastName, retailer } = data;
+
+    // 1. INPUT VALIDATION & SANITIZATION
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "A valid email address is required."
+      );
+    }
+    const sanitizedEmail = email.trim().toLowerCase();
+    
+    if (!firstName || typeof firstName !== "string" || firstName.length > 50) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "First name is invalid or too long."
+      );
+    }
+
+    if (!lastName || typeof lastName !== "string" || lastName.length > 50) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Last name is invalid or too long."
+      );
+    }
+
+    if (!retailer || typeof retailer !== "string") {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Retailer is invalid or missing."
+      );
+    }
+
+    // 2. DOMAIN ENFORCEMENT
+    const DOMAIN_WHITELIST = "@2020companies.com";
+    if (!sanitizedEmail.endsWith(DOMAIN_WHITELIST)) {
+      functions.logger.warn(`Security Event: Blocked registration attempt from unauthorized domain: ${sanitizedEmail}`);
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        `Only ${DOMAIN_WHITELIST} email accounts are authorized to register.`
+      );
+    }
+
+    // 3. ALLOWLIST AND TRANSACTION VALIDATION
+    const allowlistRef = db.collection("allowlist").doc(sanitizedEmail);
+    const userProfileRef = db.collection("users").doc(sanitizedEmail);
+
+    try {
+      return await db.runTransaction(async (transaction) => {
+        const allowlistDoc = await transaction.get(allowlistRef);
+
+        if (!allowlistDoc.exists) {
+          functions.logger.warn(`Security Event: Blocked registration attempt from unallowed email: ${sanitizedEmail}`);
+          throw new functions.https.HttpsError(
+            "permission-denied",
+            "This email is not authorized for registration. Please contact an administrator."
+          );
+        }
+
+        const allowlistData = allowlistDoc.data();
+        if (allowlistData?.status === "registered") {
+          throw new functions.https.HttpsError(
+            "already-exists",
+            "This email address has already been registered."
+          );
+        }
+
+        const assignedRole = allowlistData?.role || "user";
+
+        // 4. FIREBASE AUTH CREATION
+        let authUser;
+        try {
+          authUser = await admin.auth().createUser({
+            email: sanitizedEmail,
+            password: password,
+            displayName: `${firstName} ${lastName}`,
+            emailVerified: true,
+          });
+        } catch (authError: any) {
+          if (authError.code === "auth/email-already-exists") {
+            throw new functions.https.HttpsError(
+              "already-exists",
+              "An authentication account already exists for this email."
+            );
+          }
+          throw authError;
+        }
+
+        // 5. PROVISION CUSTOM CLAIMS
+        await admin.auth().setCustomUserClaims(authUser.uid, {
+          role: assignedRole,
+          admin: assignedRole === "admin",
+        });
+
+        // 6. DB TRANSACTION WRITES
+        let toggles = {};
+        if (retailer === "Best Buy" || retailer === "Best Buy CA") {
+          toggles = { vr: true, vr3s: false, glasses: true, tablet: true, demo: true };
+        } else if (retailer === "NFM") {
+          toggles = { vr: true, vr3s: false, glasses: false, tablet: true, demo: false };
+        }
+
+        transaction.set(userProfileRef, {
+          first: firstName,
+          last: lastName,
+          retailer: retailer,
+          toggles: toggles,
+          role: assignedRole,
+          registeredAt: new Date().toISOString(),
+          status: "active",
+        });
+
+        transaction.update(allowlistRef, {
+          status: "registered",
+          registeredUid: authUser.uid,
+          registeredAt: new Date().toISOString(),
+        });
+
+        functions.logger.info(`Security Event: Successfully created user ${sanitizedEmail} (UID: ${authUser.uid}) with role '${assignedRole}'`);
+
+        return {
+          success: true,
+          uid: authUser.uid,
+          role: assignedRole,
+        };
+      });
+    } catch (transactionError: any) {
+      if (transactionError instanceof functions.https.HttpsError) {
+        throw transactionError;
+      }
+      
+      functions.logger.error(`Critical: Transaction failed during user registration for ${sanitizedEmail}`, transactionError);
+      throw new functions.https.HttpsError(
+        "internal",
+        "An unexpected error occurred during account provisioning. Please try again."
+      );
+    }
+  });
+
+/**
+ * ONE-TIME SECURITY MIGRATION ENDPOINT (ADMIN ONLY)
+ */
+export const migrateCustomClaims = functions
+  .runWith({
+    timeoutSeconds: 300,
+    memory: "512MB",
+  })
+  .https.onCall(
+    withRequiredRole("admin", async (data, context) => {
+      functions.logger.info(`Security Event: User migration triggered by Admin UID: ${context.auth?.uid}`);
+      
+      let processedAdmins = 0;
+      let processedUsers = 0;
+      let errorsCount = 0;
+
+      try {
+        // 1. Migrate Administrators
+        const adminsSnapshot = await db.collection("admins").get();
+        for (const doc of adminsSnapshot.docs) {
+          const adminEmail = doc.id.toLowerCase().trim();
+          try {
+            const authUser = await admin.auth().getUserByEmail(adminEmail);
+            await admin.auth().setCustomUserClaims(authUser.uid, {
+              role: "admin",
+              admin: true,
+            });
+            await db.collection("allowlist").doc(adminEmail).set({
+              role: "admin",
+              status: "registered",
+              registeredUid: authUser.uid,
+              migratedAt: new Date().toISOString(),
+              source: "migration",
+            }, { merge: true });
+            processedAdmins++;
+          } catch (err: any) {
+            errorsCount++;
+            functions.logger.error(`Error migrating Admin ${adminEmail}:`, err.message);
+          }
+        }
+
+        // 2. Migrate Standard Representatives (Users)
+        let lastDoc = null;
+        const PAGE_SIZE = 100;
+        let hasMore = true;
+
+        while (hasMore) {
+          let query = db.collection("users").orderBy(admin.firestore.FieldPath.documentId()).limit(PAGE_SIZE);
+          if (lastDoc) {
+            query = query.startAfter(lastDoc);
+          }
+
+          const usersSnapshot = await query.get();
+          if (usersSnapshot.empty) {
+            hasMore = false;
+            break;
+          }
+
+          for (const doc of usersSnapshot.docs) {
+            const userEmail = doc.id.toLowerCase().trim();
+            const isAdminCheck = adminsSnapshot.docs.some(a => a.id.toLowerCase().trim() === userEmail);
+            if (isAdminCheck) continue;
+
+            try {
+              const authUser = await admin.auth().getUserByEmail(userEmail);
+              await admin.auth().setCustomUserClaims(authUser.uid, {
+                role: "user",
+                admin: false,
+              });
+              await db.collection("allowlist").doc(userEmail).set({
+                role: "user",
+                status: "registered",
+                registeredUid: authUser.uid,
+                migratedAt: new Date().toISOString(),
+                source: "migration",
+              }, { merge: true });
+              processedUsers++;
+            } catch (err: any) {
+              errorsCount++;
+              functions.logger.error(`Error migrating Representative ${userEmail}:`, err.message);
+            }
+          }
+
+          lastDoc = usersSnapshot.docs[usersSnapshot.docs.length - 1];
+          if (usersSnapshot.docs.length < PAGE_SIZE) {
+            hasMore = false;
+          }
+        }
+
+        functions.logger.info(`Migration completed successfully. Admins: ${processedAdmins}, Users: ${processedUsers}, Errors: ${errorsCount}`);
+        return {
+          success: true,
+          processedAdmins,
+          processedUsers,
+          errorsCount,
+        };
+      } catch (globalError: any) {
+        functions.logger.error("Migration failed critically:", globalError.message);
+        throw new functions.https.HttpsError("internal", "Migration failed critically: " + globalError.message);
+      }
+    })
+  );

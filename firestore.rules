@@ -16,9 +16,9 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.email.matches('.*@2020companies\\.com');
     }
 
-    // Resolves if the current user is a registered administrator in the '/admins' collection
+    // Resolves if the current user is a registered administrator in the custom claims
     function isAdmin() {
-      return isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+      return isAuthenticated() && request.auth.token.admin == true;
     }
 
     // Validates if the logged-in user matches the resource's owner email
@@ -114,6 +114,12 @@ service cloud.firestore {
       allow create: if (isCompanyEmail() && (!('repEmail' in request.resource.data) || request.resource.data.repEmail == request.auth.token.email)) || isAdmin();
       allow read, delete: if isAdmin();
       allow update: if false;
+    }
+
+    // 10. Allowlist Collection
+    // - Only administrators can read or write allowlist entries.
+    match /allowlist/{email} {
+      allow read, write: if isAdmin();
     }
   }
 }

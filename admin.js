@@ -328,12 +328,16 @@ const adminApp = {
 
         try {
             await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-            await auth.signInWithEmailAndPassword(email, pass);
-            const doc = await db.collection('admins').doc(email).get();
-            if (doc.exists) {
-                this._completeLogin(doc.data(), email);
+            const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+            const tokenResult = await userCredential.user.getIdTokenResult(true);
+            
+            if (tokenResult.claims.admin === true) {
+                const doc = await db.collection('users').doc(email).get();
+                const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
+                this._completeLogin({ ...userData, role: 'admin' }, email);
             } else {
-                errorEl.innerText = "Admin profile not found.";
+                await auth.signOut();
+                errorEl.innerText = "Access blocked: You do not possess administrator credentials.";
             }
         } catch (error) {
             console.error("Login error details:", error);
@@ -365,9 +369,19 @@ const adminApp = {
     checkSession: function() {
         auth.onAuthStateChanged(async (user) => {
             if (user) {
-                const doc = await db.collection('admins').doc(user.email).get();
-                if (doc.exists) {
-                    this._completeLogin(doc.data(), user.email);
+                try {
+                    const tokenResult = await user.getIdTokenResult(true);
+                    if (tokenResult.claims.admin === true) {
+                        const doc = await db.collection('users').doc(user.email).get();
+                        const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
+                        this._completeLogin({ ...userData, role: 'admin' }, user.email);
+                    } else {
+                        console.error("[Security] Admin session blocked: missing admin claim");
+                        await this.logout();
+                    }
+                } catch (err) {
+                    console.error("[Security] Session verification error:", err);
+                    await this.logout();
                 }
             } else {
                 this.logout();
@@ -457,8 +471,8 @@ const adminApp = {
         });
         this.activeListeners.push(unsubFaqs);
 
-        // Real-time listener for admins
-        const unsubAdmins = db.collection('admins').onSnapshot((snapshot) => {
+        // Real-time listener for admins (using users collection filtered by role)
+        const unsubAdmins = db.collection('users').where('role', '==', 'admin').onSnapshot((snapshot) => {
             const adminsList = [];
             snapshot.forEach(doc => adminsList.push({ email: doc.id, ...doc.data() }));
             this.renderAdminsList(adminsList);
@@ -1185,15 +1199,22 @@ const adminApp = {
         btn.innerHTML = 'Provisioning... <i class="ph ph-spinner ph-spin"></i>';
 
         try {
-            // Use the secondary app to create the user so the current admin is NOT logged out
-            await secondaryApp.auth().createUserWithEmailAndPassword(email, pass);
-            await secondaryApp.auth().signOut();
-            
-            // Write to the admins collection using the PRIMARY app (which is logged in as an admin)
-            await db.collection('admins').doc(email).set({
-                first: first,
-                last: last,
-                role: 'admin'
+            // 1. Write user to /allowlist with 'admin' role
+            await db.collection('allowlist').doc(email).set({
+                role: 'admin',
+                status: 'pending',
+                addedBy: auth.currentUser.email,
+                addedAt: new Date().toISOString()
+            });
+
+            // 2. Execute secure registration via Cloud Functions
+            const registerUser = firebase.app().functions('us-central1').httpsCallable('registerUser');
+            await registerUser({
+                email: email,
+                password: pass,
+                firstName: first,
+                lastName: last,
+                retailer: 'Best Buy' // Default retailer for administrators
             });
 
             // Clear form
@@ -1219,9 +1240,10 @@ const adminApp = {
             alert("You cannot delete your own admin account.");
             return;
         }
-        if(confirm(`Are you sure you want to revoke admin access for ${email}? NOTE: This only removes their dashboard access. Their Firebase Auth account must be deleted manually if required.`)) {
+        if(confirm(`Are you sure you want to revoke admin access for ${email}? NOTE: This removes their user profile and allowlist permissions. Their Firebase Auth account must be deleted manually if required.`)) {
             try {
-                await db.collection('admins').doc(email).delete();
+                await db.collection('users').doc(email).delete();
+                await db.collection('allowlist').doc(email).delete();
             } catch(e) {
                 alert("Error deleting admin: " + e.message);
             }

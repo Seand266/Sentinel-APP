@@ -164,21 +164,33 @@ const app = {
                 return;
             }
 
-            let toggles = {};
-            if (retailer === 'Best Buy' || retailer === 'Best Buy CA') toggles = { vr: true, vr3s: false, glasses: true, tablet: true, demo: true };
-            else if (retailer === 'NFM') toggles = { vr: true, vr3s: false, glasses: false, tablet: true, demo: false };
+            const btn = document.querySelector('#view-auth button[onclick*="signUp"]');
+            const originalText = btn ? btn.innerHTML : 'Sign Up';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = 'Creating Account... <i class="ph ph-spinner ph-spin"></i>';
+            }
 
             try {
-                // Create user in Firebase Auth
-                await auth.createUserWithEmailAndPassword(email, pass);
+                // Call secure backend registration Cloud Function
+                const registerUser = firebase.app().functions('us-central1').httpsCallable('registerUser');
+                await registerUser({
+                    email: email,
+                    password: pass,
+                    firstName: first,
+                    lastName: last,
+                    retailer: retailer
+                });
                 
-                // Store extended profile data in Firestore
-                const userData = { first, last, retailer, toggles };
-                await db.collection('users').doc(email).set(userData);
-                
-                this._completeLogin(userData, email);
+                // Automatically log user in upon successful backend creation
+                await auth.signInWithEmailAndPassword(email, pass);
             } catch (error) {
-                errorEl.innerText = error.message;
+                console.error("Registration error:", error);
+                errorEl.innerText = error.message || "Server registration failed.";
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
             }
         },
 
@@ -289,9 +301,28 @@ const app = {
         checkSession: function() {
             auth.onAuthStateChanged(async (user) => {
                 if (user) {
-                    const doc = await db.collection('users').doc(user.email).get();
-                    if (doc.exists) {
-                        await this._completeLogin(doc.data(), user.email);
+                    try {
+                        const errorEl = document.getElementById('auth-error');
+                        // Force refresh token result to grab latest custom claims
+                        const tokenResult = await user.getIdTokenResult(true);
+                        const claims = tokenResult.claims;
+
+                        if (claims.role === 'user' || claims.admin === true) {
+                            const doc = await db.collection('users').doc(user.email).get();
+                            if (doc.exists) {
+                                await this._completeLogin(doc.data(), user.email);
+                            } else {
+                                if (errorEl) errorEl.innerText = "User profile not found in database.";
+                                await this.logout();
+                            }
+                        } else {
+                            console.error("[Security] Session blocked: missing custom claims");
+                            if (errorEl) errorEl.innerText = "Access blocked: Your email is not validated in the Allowlist.";
+                            await this.logout();
+                        }
+                    } catch (err) {
+                        console.error("[Security] Session validation failed:", err);
+                        await this.logout();
                     }
                 } else {
                     await this.logout();
