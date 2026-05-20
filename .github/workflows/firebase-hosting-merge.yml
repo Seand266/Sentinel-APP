@@ -11,6 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Inject Credentials/Secrets
+        run: |
+          echo "Injecting Firebase and EmailJS secrets into site layouts..."
+          sed -i "s/{{FIREBASE_API_KEY}}/${{ secrets.FIREBASE_API_KEY }}/g" index.html
+          sed -i "s/{{EMAILJS_PUBLIC_KEY}}/${{ secrets.EMAILJS_PUBLIC_KEY }}/g" index.html
+          sed -i "s/{{FIREBASE_API_KEY}}/${{ secrets.FIREBASE_API_KEY }}/g" admin.html
+          sed -i "s/{{EMAILJS_PUBLIC_KEY}}/${{ secrets.EMAILJS_PUBLIC_KEY }}/g" admin.html
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
