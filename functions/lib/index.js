@@ -431,8 +431,27 @@ exports.migrateCustomClaims = functions
     timeoutSeconds: 300,
     memory: "512MB",
 })
-    .https.onCall(withRequiredRole("admin", async (data, context) => {
-    functions.logger.info(`Security Event: User migration triggered by Admin UID: ${context.auth?.uid}`);
+    .https.onCall(async (data, context) => {
+    if (!context.auth) {
+        functions.logger.warn("Security Event: Anonymous attempt to invoke migrateCustomClaims.");
+        throw new functions.https.HttpsError("unauthenticated", "Authentication is required.");
+    }
+    const { uid, token } = context.auth;
+    const userEmail = token.email?.toLowerCase().trim();
+    const isAdmin = token.admin === true;
+    let isLegacyAdmin = false;
+    if (userEmail) {
+        const legacyAdminDoc = await db.collection("admins").doc(userEmail).get();
+        if (legacyAdminDoc.exists) {
+            isLegacyAdmin = true;
+        }
+    }
+    if (!isAdmin && !isLegacyAdmin) {
+        functions.logger.error(`Security Event: Unauthorized attempt to run migration. ` +
+            `UID: ${uid} (${userEmail})`);
+        throw new functions.https.HttpsError("permission-denied", "Access denied. You do not possess the required privilege level.");
+    }
+    functions.logger.info(`Security Event: User migration triggered by Admin: ${uid} (${userEmail})`);
     let processedAdmins = 0;
     let processedUsers = 0;
     let errorsCount = 0;
@@ -517,5 +536,5 @@ exports.migrateCustomClaims = functions
         functions.logger.error("Migration failed critically:", globalError.message);
         throw new functions.https.HttpsError("internal", "Migration failed critically: " + globalError.message);
     }
-}));
+});
 //# sourceMappingURL=index.js.map

@@ -329,19 +329,43 @@ const adminApp = {
         try {
             await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
             const userCredential = await auth.signInWithEmailAndPassword(email, pass);
-            const tokenResult = await userCredential.user.getIdTokenResult(true);
+            let tokenResult = await userCredential.user.getIdTokenResult(true);
             
             if (tokenResult.claims.admin === true) {
                 const doc = await db.collection('users').doc(email).get();
                 const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
                 this._completeLogin({ ...userData, role: 'admin' }, email);
             } else {
+                // Fallback check: is this user a legacy admin?
+                const legacyAdminDoc = await db.collection('admins').doc(email).get();
+                if (legacyAdminDoc.exists) {
+                    errorEl.innerText = "Provisioning secure claims, please wait...";
+                    errorEl.style.color = 'var(--warning)';
+                    try {
+                        const migrateFn = firebase.functions().httpsCallable('migrateCustomClaims');
+                        await migrateFn();
+                        
+                        // Force refresh token to get new claims
+                        tokenResult = await userCredential.user.getIdTokenResult(true);
+                        if (tokenResult.claims.admin === true) {
+                            const doc = await db.collection('users').doc(email).get();
+                            const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
+                            this._completeLogin({ ...userData, role: 'admin' }, email);
+                            return;
+                        }
+                    } catch (migrationErr) {
+                        console.error("Auto-migration failed:", migrationErr);
+                    }
+                }
+                
                 await auth.signOut();
                 errorEl.innerText = "Access blocked: You do not possess administrator credentials.";
+                errorEl.style.color = 'var(--danger)';
             }
         } catch (error) {
             console.error("Login error details:", error);
             errorEl.innerText = "Invalid email or password. Details: " + error.message;
+            errorEl.style.color = 'var(--danger)';
         }
     },
 
@@ -370,12 +394,31 @@ const adminApp = {
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 try {
-                    const tokenResult = await user.getIdTokenResult(true);
+                    let tokenResult = await user.getIdTokenResult(true);
                     if (tokenResult.claims.admin === true) {
                         const doc = await db.collection('users').doc(user.email).get();
                         const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
                         this._completeLogin({ ...userData, role: 'admin' }, user.email);
                     } else {
+                        // Fallback check: is this user a legacy admin?
+                        const legacyAdminDoc = await db.collection('admins').doc(user.email).get();
+                        if (legacyAdminDoc.exists) {
+                            try {
+                                const migrateFn = firebase.functions().httpsCallable('migrateCustomClaims');
+                                await migrateFn();
+                                
+                                // Force refresh token to get new claims
+                                tokenResult = await user.getIdTokenResult(true);
+                                if (tokenResult.claims.admin === true) {
+                                    const doc = await db.collection('users').doc(user.email).get();
+                                    const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
+                                    this._completeLogin({ ...userData, role: 'admin' }, user.email);
+                                    return;
+                                }
+                            } catch (migrationErr) {
+                                console.error("Session auto-migration failed:", migrationErr);
+                            }
+                        }
                         console.error("[Security] Admin session blocked: missing admin claim");
                         await this.logout();
                     }
