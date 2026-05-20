@@ -92,23 +92,9 @@
 
                 <div id="admin-view-data">
                     <div class="dashboard-grid">
-                    <!-- Global Stats (Live) -->
-                    <div class="card glass-panel" style="padding: 20px;">
-                        <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Live Fleet Status</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
-                            <div style="text-align: center; padding: 16px; background: rgba(49,162,76,0.07); border-radius: var(--radius-md); border: 1px solid rgba(49,162,76,0.15);">
-                                <div style="font-size: 32px; font-weight: 700; color: var(--success);" id="live-stat-online">0</div>
-                                <div class="text-muted text-sm" style="margin-top: 4px;">Operational</div>
-                            </div>
-                            <div style="text-align: center; padding: 16px; background: rgba(245,166,35,0.07); border-radius: var(--radius-md); border: 1px solid rgba(245,166,35,0.15);">
-                                <div style="font-size: 32px; font-weight: 700; color: var(--warning);" id="live-stat-issues">0</div>
-                                <div class="text-muted text-sm" style="margin-top: 4px;">Having Issues</div>
-                            </div>
-                            <div style="text-align: center; padding: 16px; background: rgba(228,30,63,0.07); border-radius: var(--radius-md); border: 1px solid rgba(228,30,63,0.15);">
-                                <div style="font-size: 32px; font-weight: 700; color: var(--danger);" id="live-stat-broken">0</div>
-                                <div class="text-muted text-sm" style="margin-top: 4px;">Broken/RMA</div>
-                            </div>
-                        </div>
+                    <!-- Live Fleet Status Command Center -->
+                    <div class="card glass-panel" id="live-fleet-status-container" style="padding: 24px; margin-bottom: 24px;">
+                        <!-- Will be populated dynamically in admin.js -->
                     </div>
 
                     <!-- Collated Data Table -->

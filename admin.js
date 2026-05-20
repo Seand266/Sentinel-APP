@@ -21,6 +21,167 @@ const adminApp = {
         });
     },
 
+    updateLiveFleetStatus: function() {
+        const container = document.getElementById('live-fleet-status-container');
+        if (!container) return;
+
+        if (!this.usersCache || Object.keys(this.usersCache).length === 0) {
+            container.innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; height: 120px; color: var(--text-muted); font-size: 14px; flex-direction: column; gap: 8px;">
+                    <i class="ph ph-spinner ph-spin" style="font-size: 24px;"></i>
+                    <span>Connecting to live fleet telemetry...</span>
+                </div>
+            `;
+            return;
+        }
+
+        let totalOp = 0, totalIssue = 0, totalBroken = 0;
+        let models = {
+            'Meta Quest 3': { op: 0, issue: 0, broken: 0 },
+            'Meta Quest 3S': { op: 0, issue: 0, broken: 0 },
+            'Ray-Ban Meta Gen 2': { op: 0, issue: 0, broken: 0 },
+            'Samsung Tablet': { op: 0, issue: 0, broken: 0 },
+            'Samsung Demo Device': { op: 0, issue: 0, broken: 0 }
+        };
+
+        Object.values(this.usersCache).forEach(u => {
+            const t = u.toggles || { vr: true, vr3s: true, glasses: true, tablet: true, demo: true };
+            const s = u.statuses || {};
+            
+            const checkStatus = (key, modelName) => {
+                if (t[key] !== false) {
+                    const stat = s[key] || 'Operational';
+                    if (!models[modelName]) models[modelName] = { op: 0, issue: 0, broken: 0 };
+                    if (stat === 'Operational') { totalOp++; models[modelName].op++; }
+                    else if (stat === 'Having Issues') { totalIssue++; models[modelName].issue++; }
+                    else if (stat === 'Broken/Unusable') { totalBroken++; models[modelName].broken++; }
+                }
+            };
+
+            checkStatus('vr', 'Meta Quest 3');
+            checkStatus('vr3s', 'Meta Quest 3S');
+            checkStatus('glasses', 'Ray-Ban Meta Gen 2');
+            checkStatus('tablet', 'Samsung Tablet');
+            checkStatus('demo', 'Samsung Demo Device');
+
+            if (u.dynamicDevices) {
+                u.dynamicDevices.forEach(d => {
+                    if (t[d.key] !== false) {
+                        if (!models[d.model]) models[d.model] = { op: 0, issue: 0, broken: 0 };
+                        const stat = s[d.key] || 'Operational';
+                        if (stat === 'Operational') { totalOp++; models[d.model].op++; }
+                        else if (stat === 'Having Issues') { totalIssue++; models[d.model].issue++; }
+                        else if (stat === 'Broken/Unusable') { totalBroken++; models[d.model].broken++; }
+                    }
+                });
+            }
+        });
+
+        const totalActive = totalOp + totalIssue + totalBroken;
+        const opPct = totalActive > 0 ? Math.round((totalOp / totalActive) * 100) : 0;
+        const issuePct = totalActive > 0 ? Math.round((totalIssue / totalActive) * 100) : 0;
+        const brokenPct = totalActive > 0 ? Math.round((totalBroken / totalActive) * 100) : 0;
+
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+        let html = `
+            <!-- Card Header -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background-color: var(--success); box-shadow: 0 0 10px var(--success); animation: pulse 1.8s infinite;"></div>
+                    <h3 style="font-size: 15px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">Live Fleet Status Command Center</h3>
+                </div>
+                <div style="font-size: 12px; color: var(--text-muted); font-weight: 500; background: var(--bg-base); padding: 4px 10px; border-radius: 20px;">
+                    <i class="ph ph-clock" style="vertical-align: middle;"></i> Last Updated: ${timeStr}
+                </div>
+            </div>
+
+            <!-- Global High-Level Metrics -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                <div style="padding: 16px; background: rgba(49,162,76,0.06); border-radius: var(--radius-md); border: 1px solid rgba(49,162,76,0.12); text-align: center; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+                    <div style="font-size: 32px; font-weight: 800; color: var(--success); margin-bottom: 4px;">${totalOp}</div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--success); text-transform: uppercase; letter-spacing: 0.02em;">Operational</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${opPct}% of Active Fleet</div>
+                </div>
+                <div style="padding: 16px; background: rgba(245,166,35,0.06); border-radius: var(--radius-md); border: 1px solid rgba(245,166,35,0.12); text-align: center; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+                    <div style="font-size: 32px; font-weight: 800; color: var(--warning); margin-bottom: 4px;">${totalIssue}</div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--warning); text-transform: uppercase; letter-spacing: 0.02em;">Having Issues</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${issuePct}% of Active Fleet</div>
+                </div>
+                <div style="padding: 16px; background: rgba(228,30,63,0.06); border-radius: var(--radius-md); border: 1px solid rgba(228,30,63,0.12); text-align: center; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+                    <div style="font-size: 32px; font-weight: 800; color: var(--danger); margin-bottom: 4px;">${totalBroken}</div>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--danger); text-transform: uppercase; letter-spacing: 0.02em;">Broken / RMA</div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">${brokenPct}% of Active Fleet</div>
+                </div>
+            </div>
+
+            <!-- CSS Animation for Pulsating Dot -->
+            <style>
+                @keyframes pulse {
+                    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(49, 162, 76, 0.7); }
+                    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(49, 162, 76, 0); }
+                    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(49, 162, 76, 0); }
+                }
+            </style>
+
+            <h4 style="font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px;">Device Model Status Breakdown</h4>
+            
+            <!-- Breakdown Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+        `;
+
+        const modelIcons = {
+            'Meta Quest 3': 'ph-headset',
+            'Meta Quest 3S': 'ph-headset',
+            'Ray-Ban Meta Gen 2': 'ph-sunglasses',
+            'Samsung Tablet': 'ph-device-tablet',
+            'Samsung Demo Device': 'ph-device-mobile'
+        };
+
+        Object.entries(models).forEach(([modelName, mStats]) => {
+            const mTotal = mStats.op + mStats.issue + mStats.broken;
+            if (mTotal === 0) return; // Skip models with zero active devices
+
+            const mOpPct = Math.round((mStats.op / mTotal) * 100);
+            const mIssuePct = Math.round((mStats.issue / mTotal) * 100);
+            const mBrokenPct = mTotal > 0 ? (100 - mOpPct - mIssuePct) : 0; // Prevent rounding discrepancy
+
+            const iconClass = modelIcons[modelName] || 'ph-sunglasses';
+
+            html += `
+                <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; background: var(--bg-surface); display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <i class="ph ${iconClass}" style="font-size: 20px; color: var(--primary); background: var(--primary-glow); padding: 6px; border-radius: var(--radius-sm);"></i>
+                            <div>
+                                <div style="font-weight: 600; font-size: 13px; color: var(--text-main);">${modelName}</div>
+                                <div style="font-size: 11px; color: var(--text-muted);">${mTotal} active in fleet</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stacked Health Bar -->
+                    <div style="display: flex; height: 6px; background: rgba(0, 0, 0, 0.05); border-radius: 3px; overflow: hidden; margin: 10px 0;">
+                        ${mStats.op > 0 ? `<div style="width: ${mOpPct}%; background: var(--success);" title="Operational: ${mStats.op}"></div>` : ''}
+                        ${mStats.issue > 0 ? `<div style="width: ${mIssuePct}%; background: var(--warning);" title="Having Issues: ${mStats.issue}"></div>` : ''}
+                        ${mStats.broken > 0 ? `<div style="width: ${mBrokenPct}%; background: var(--danger);" title="Broken: ${mStats.broken}"></div>` : ''}
+                    </div>
+
+                    <!-- Breakdown Detail Labels -->
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+                        <span>Op: <strong style="color: var(--success);">${mStats.op}</strong></span>
+                        <span>Issues: <strong style="color: var(--warning);">${mStats.issue}</strong></span>
+                        <span>Broken: <strong style="color: var(--danger);">${mStats.broken}</strong></span>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+        container.innerHTML = html;
+    },
+
     // --- Logger Service ---
     logger: {
         // Generated once per page load — groups all events from a single visit
@@ -211,6 +372,7 @@ const adminApp = {
             this.usersCache = users;
             this.loadUsers();
             this.updateAnalytics();
+            this.updateLiveFleetStatus();
         }, (error) => {
             console.warn('[Firestore] Users listener error:', error.message);
         });
@@ -967,6 +1129,8 @@ const adminApp = {
         document.getElementById(`admin-view-${tabId}`).style.display = 'block';
         if (tabId === 'analytics') {
             this.updateAnalytics();
+        } else if (tabId === 'data') {
+            this.updateLiveFleetStatus();
         }
 
         if(this.logger) this.logger.logView(`admin_${tabId}`);
@@ -1230,10 +1394,7 @@ const adminApp = {
             }
         });
 
-        // Update the Global Stats cards in the dashboard
-        document.getElementById('live-stat-online').innerText = totalOp;
-        document.getElementById('live-stat-issues').innerText = totalIssue;
-        document.getElementById('live-stat-broken').innerText = totalBroken;
+        // Old dashboard stats were replaced by the live fleet status card
 
         // Destroy existing charts to prevent memory leaks / overlap
         if (this.healthChart) this.healthChart.destroy();
