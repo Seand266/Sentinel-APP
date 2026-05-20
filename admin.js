@@ -16,7 +16,8 @@ const adminApp = {
             timestamp: new Date().toISOString(),
             status: status,
             eventType: eventType,
-            repId: adminName
+            repId: adminName,
+            repEmail: adminApp.currentUser ? adminApp.currentUser.email : 'admin_unknown'
         });
     },
 
@@ -92,6 +93,21 @@ const adminApp = {
     diagCache: [],
     requestsCache: [],
     logsCache: [],
+    activeListeners: [],
+
+    unsubscribeAll: function() {
+        if (this.activeListeners && this.activeListeners.length > 0) {
+            console.debug('[Firestore] Unsubscribing from ' + this.activeListeners.length + ' active listeners.');
+            this.activeListeners.forEach(unsub => {
+                try {
+                    unsub();
+                } catch (e) {
+                    console.error('[Firestore] Error unsubscribing:', e);
+                }
+            });
+            this.activeListeners = [];
+        }
+    },
 
 
 
@@ -149,7 +165,12 @@ const adminApp = {
     },
 
     logout: async function() {
-        await auth.signOut();
+        this.unsubscribeAll();
+        try {
+            await auth.signOut();
+        } catch (e) {
+            console.error('[Auth] Error signing out:', e);
+        }
         this.currentUser = null;
         document.getElementById('admin-content').style.display = 'none';
         document.getElementById('view-auth').classList.add('flex-active');
@@ -178,8 +199,11 @@ const adminApp = {
     },
 
     loadData: function() {
+        // Unsubscribe from any active listeners first to avoid double registering
+        this.unsubscribeAll();
+
         // Real-time listener for users
-        db.collection('users').onSnapshot((snapshot) => {
+        const unsubUsers = db.collection('users').onSnapshot((snapshot) => {
             const users = {};
             snapshot.forEach(doc => {
                 users[doc.id] = doc.data();
@@ -187,10 +211,13 @@ const adminApp = {
             this.usersCache = users;
             this.loadUsers();
             this.updateAnalytics();
+        }, (error) => {
+            console.warn('[Firestore] Users listener error:', error.message);
         });
+        this.activeListeners.push(unsubUsers);
 
         // Real-time listener for reports
-        db.collection('reports').onSnapshot((snapshot) => {
+        const unsubReports = db.collection('reports').onSnapshot((snapshot) => {
             const allReports = [];
             snapshot.forEach(doc => allReports.push({ id: doc.id, ...doc.data() }));
             
@@ -203,54 +230,75 @@ const adminApp = {
             this.renderTable(this.reportsCache, 'reports-table');
             this.renderTable(this.diagCache, 'diagnostics-table');
             this.updateStats(allReports);
+        }, (error) => {
+            console.warn('[Firestore] Reports listener error:', error.message);
         });
+        this.activeListeners.push(unsubReports);
 
         // Real-time listener for credential requests
-        db.collection('credential_requests').onSnapshot((snapshot) => {
+        const unsubCredRequests = db.collection('credential_requests').onSnapshot((snapshot) => {
             const requests = [];
             snapshot.forEach(doc => requests.push({ id: doc.id, ...doc.data() }));
             this.requestsCache = requests.sort((a, b) => new Date(b.date) - new Date(a.date));
             this.loadRequests();
+        }, (error) => {
+            console.warn('[Firestore] Credential Requests listener error:', error.message);
         });
+        this.activeListeners.push(unsubCredRequests);
 
         // Real-time listener for reset requests
-        db.collection('reset_requests').onSnapshot((snapshot) => {
+        const unsubResetRequests = db.collection('reset_requests').onSnapshot((snapshot) => {
             const resets = [];
             snapshot.forEach(doc => resets.push({ id: doc.id, ...doc.data() }));
             this.resetsCache = resets.sort((a, b) => new Date(b.date) - new Date(a.date));
             this.loadResets();
+        }, (error) => {
+            console.warn('[Firestore] Reset Requests listener error:', error.message);
         });
+        this.activeListeners.push(unsubResetRequests);
 
         // Real-time listener for replacement requests
-        db.collection('replacement_requests').onSnapshot((snapshot) => {
+        const unsubRepRequests = db.collection('replacement_requests').onSnapshot((snapshot) => {
             const replacements = [];
             snapshot.forEach(doc => replacements.push({ id: doc.id, ...doc.data() }));
             this.replacementsCache = replacements.sort((a, b) => new Date(b.date) - new Date(a.date));
             this.loadReplacements();
+        }, (error) => {
+            console.warn('[Firestore] Replacement Requests listener error:', error.message);
         });
+        this.activeListeners.push(unsubRepRequests);
 
         // Real-time listener for FAQs
-        db.collection('faqs').onSnapshot((snapshot) => {
+        const unsubFaqs = db.collection('faqs').onSnapshot((snapshot) => {
             const faqs = [];
             snapshot.forEach(doc => faqs.push({ id: doc.id, ...doc.data() }));
             faqs.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
             this.renderAdminFaqs(faqs);
+        }, (error) => {
+            console.warn('[Firestore] FAQs listener error:', error.message);
         });
+        this.activeListeners.push(unsubFaqs);
 
         // Real-time listener for admins
-        db.collection('admins').onSnapshot((snapshot) => {
+        const unsubAdmins = db.collection('admins').onSnapshot((snapshot) => {
             const adminsList = [];
             snapshot.forEach(doc => adminsList.push({ email: doc.id, ...doc.data() }));
             this.renderAdminsList(adminsList);
+        }, (error) => {
+            console.warn('[Firestore] Admins listener error:', error.message);
         });
+        this.activeListeners.push(unsubAdmins);
 
         // Real-time listener for view_logs (limit to 500 to prevent crashing)
-        db.collection('view_logs').orderBy('timestamp', 'desc').limit(500).onSnapshot((snapshot) => {
+        const unsubLogs = db.collection('view_logs').orderBy('timestamp', 'desc').limit(500).onSnapshot((snapshot) => {
             const logs = [];
             snapshot.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
             this.logsCache = logs;
             this.renderLogsTable(logs);
+        }, (error) => {
+            console.warn('[Firestore] View Logs listener error:', error.message);
         });
+        this.activeListeners.push(unsubLogs);
     },
 
     loadUsers: function(searchQuery = '') {

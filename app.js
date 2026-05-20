@@ -52,7 +52,8 @@ const app = {
             timestamp: new Date().toISOString(),
             status: status,
             eventType: eventType,
-            repId: repName
+            repId: repName,
+            repEmail: app.auth.currentUser ? app.auth.currentUser.email : 'unknown'
         });
     },
 
@@ -513,6 +514,7 @@ const app = {
             db.collection('reports').add({
                 date: new Date().toISOString(),
                 repId: repName,
+                repEmail: app.auth.currentUser ? app.auth.currentUser.email : 'unknown',
                 device: this.currentDevice.type,
                 model: this.currentDevice.model,
                 status: status,
@@ -682,6 +684,7 @@ const app = {
             db.collection('reports').add({
                 date: new Date().toISOString(),
                 repId: repName,
+                repEmail: app.auth.currentUser ? app.auth.currentUser.email : 'unknown',
                 device: this.data.deviceType || 'Unknown Device',
                 model: 'Diagnostic Run',
                 status: reportStatus,
@@ -839,6 +842,7 @@ const app = {
             db.collection('credential_requests').add({
                 date: new Date().toISOString(),
                 repName: repName,
+                repEmail: app.auth.currentUser ? app.auth.currentUser.email : 'unknown',
                 system: system,
                 reason: reason
             });
