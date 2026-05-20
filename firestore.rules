@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Core Authorization Functions ---
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if the user's email ends with the company domain
+    function isCompanyEmail() {
+      return isAuthenticated() && request.auth.token.email.matches('.*@2020companies\\.com');
+    }
+
+    // Check if the user is an admin by verifying if their email exists in the admins collection
+    function isAdmin() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+    }
+
+    // --- Users Collection ---
+    // Reps can read and write their own profile. Admins can read, write, delete any profile.
+    match /users/{userId} {
+      allow read, write: if (isAuthenticated() && request.auth.token.email == userId) || isAdmin();
+    }
+
+    // --- Admins Collection ---
+    match /admins/{adminId} {
+      // Users can only read their own admin doc, admins can read all
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.token.email == adminId);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // --- Reports Collection ---
+    match /reports/{reportId} {
+      // Reps can only create reports. Admins can read, update, delete.
+      allow create: if isCompanyEmail() || isAdmin();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // --- Device Health Logs Collection ---
+    match /device_health_logs/{logId} {
+      // Reps can only create logs. Admins can read, create, delete.
+      allow create: if isCompanyEmail() || isAdmin();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // --- FAQs Collection ---
+    match /faqs/{faqId} {
+      // Reps can read FAQs. Admins can create, update, delete.
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // --- Reset Requests Collection ---
+    match /reset_requests/{requestId} {
+      // Unauthenticated users can create a reset request from the login screen.
+      // We enforce that they only write specific fields to prevent abuse.
+      allow create: if request.resource.data.keys().hasOnly(['email', 'date']) 
+                    && request.resource.data.email is string
+                    && request.resource.data.email.matches('.*@2020companies\\.com');
+      // Admins can read and delete them.
+      allow read, delete: if isAdmin();
+    }
+
+    // --- Credential Requests Collection ---
+    match /credential_requests/{reqId} {
+      // Reps can create. Admins can read, delete.
+      allow create: if isCompanyEmail() || isAdmin();
+      allow read, delete: if isAdmin();
+    }
+
+    // --- Replacement Requests Collection ---
+    match /replacement_requests/{reqId} {
+      // Reps can create requests for themselves. Admins can create, read, and delete requests.
+      allow create: if (isCompanyEmail() && request.resource.data.repEmail == request.auth.token.email) || isAdmin();
+      allow read, delete: if isAdmin();
+    }
+
+    // --- View Logs Collection ---
+    match /view_logs/{logId} {
+      // Anyone can log views matching the schema, but userId must match the logged-in session email
+      allow create: if request.resource.data.keys().hasAll(['timestamp', 'view', 'userId', 'userAgent'])
+                    && request.resource.data.timestamp is string
+                    && request.resource.data.view is string
+                    && request.resource.data.userId is string
+                    && request.resource.data.userAgent is string
+                    && request.resource.data.userId == (request.auth != null ? request.auth.token.email : 'anonymous');
+      allow read, update, delete: if isAdmin();
+    }
+
+    // --- Secure Meta AI Credentials Collection ---
+    match /credentials/{email} {
+      allow read: if (isAuthenticated() && request.auth.token.email == email) || isAdmin();
+      allow create: if (isAuthenticated() && request.auth.token.email == email) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EmailJS Debugger</title>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+       (function(){
+          emailjs.init({
+             publicKey: "9nLywE3ododpCdTWS",
+          });
+       })();
+    </script>
+</head>
+<body style="font-family: sans-serif; padding: 20px;">
+    <h2>EmailJS Live Debugger</h2>
+    <p>Click the button below to force a test email directly through the API. We will catch the exact error message if it fails!</p>
+    <button onclick="runTest()" style="padding: 10px 20px; font-size: 16px; background: blue; color: white; cursor: pointer;">Send Test Email</button>
+    <pre id="output" style="background: #eee; padding: 10px; margin-top: 20px; border-radius: 5px; min-height: 50px; white-space: pre-wrap;"></pre>
+
+    <script>
+        function runTest() {
+            const out = document.getElementById('output');
+            out.innerText = "Sending request to EmailJS...";
+            
+            if (typeof emailjs === 'undefined') {
+                out.innerText = "CRITICAL ERROR: emailjs SDK did not load. Check your internet connection or adblocker.";
+                return;
+            }
+
+            emailjs.send("service_syb4oto", "template_0tx65cr", {
+                ticket_type: "Debugger Test",
+                rep_name: "Automated Debugger",
+                details: "If you are reading this, the API connection is successful!"
+            }).then(
+                function(response) {
+                    out.innerText = "✅ SUCCESS!\nStatus: " + response.status + "\nText: " + response.text + "\n\nCheck your inbox!";
+                },
+                function(error) {
+                    out.innerText = "❌ FAILED!\nError Data: " + JSON.stringify(error, null, 2) + "\n\nNote: If you see 'The 3rd parameter is expected to be the HTML form element', we have a code issue. If you see an origin error, you need to whitelist 127.0.0.1 in EmailJS.";
+                }
+            ).catch(err => {
+                out.innerText = "❌ EXCEPTION CAUGHT!\n" + err.message;
+            });
+        }
+    </script>
+</body>
+</html>

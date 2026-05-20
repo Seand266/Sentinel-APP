@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SENTINEL</title>
+    
+    <meta name="theme-color" content="#0F172A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <div id="app">
+        
+        <!-- Auth Screen -->
+        <section id="view-auth" class="view flex-active login-screen">
+            <div class="logo" style="justify-content: center; margin-bottom: 24px; flex-direction: column; align-items: center; gap: 8px;">
+                <div id="sentinel-logo-slot" style="width: 110px; height: 110px; display: flex; align-items: center; justify-content: center;">
+                    <img src="sentinel-logo.png" alt="SENTINEL Logo" style="width: 110px; height: 110px; object-fit: contain; border-radius: 22px;">
+                </div>
+                <h1 style="font-size: 42px; font-weight: 700; letter-spacing: 6px; margin: 0;">SENTINEL</h1>
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0; letter-spacing: 1px;">Stay Online. Stay Ahead.</p>
+            </div>
+            <div class="login-box card glass-panel">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="tab-login" onclick="app.auth.switchTab('login')">Login</button>
+                    <button class="auth-tab" id="tab-signup" onclick="app.auth.switchTab('signup')">Sign Up</button>
+                </div>
+                
+                <!-- Login Form -->
+                <div id="auth-login">
+                    <div class="form-group mb-10">
+                        <input type="email" id="login-email" placeholder="Email (@2020companies.com)">
+                    </div>
+                    <div class="form-group mb-20">
+                        <input type="password" id="login-pass" placeholder="Password">
+                        <div style="text-align: right; margin-top: 8px;">
+                            <a href="#" onclick="app.auth.resetPassword(); return false;" style="color: var(--primary); font-size: 13px; text-decoration: none;">Request Account Reset</a>
+                        </div>
+                    </div>
+                    <button class="btn primary full-width" onclick="app.auth.login()">Login</button>
+                </div>
+
+                <!-- Signup Form -->
+                <div id="auth-signup" class="hidden">
+                    <div class="form-group mb-10">
+                        <input type="text" id="signup-first" placeholder="First Name">
+                    </div>
+                    <div class="form-group mb-10">
+                        <input type="text" id="signup-last" placeholder="Last Name">
+                    </div>
+                    <div class="form-group mb-10" style="text-align: left;">
+                        <select id="signup-retailer">
+                            <option value="">Select Retailer...</option>
+                            <option value="Best Buy">Best Buy</option>
+                            <option value="Best Buy CA">Best Buy CA</option>
+                            <option value="NFM">NFM</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-10">
+                        <input type="email" id="signup-email" placeholder="Email (@2020companies.com)">
+                    </div>
+                    <div class="form-group mb-10">
+                        <input type="password" id="signup-pass" placeholder="Create Password">
+                    </div>
+                    <div class="form-group mb-20">
+                        <input type="password" id="signup-confirm-pass" placeholder="Confirm Password">
+                    </div>
+                    <button class="btn primary full-width" onclick="app.auth.signup()">Create Account</button>
+                </div>
+                <div class="validation-message mt-10" id="auth-error"></div>
+            </div>
+        </section>
+
+        <!-- Main UI -->
+        <div id="main-ui">
+            <header class="app-header">
+                <div class="logo">
+                    <i class="ph ph-cpu"></i>
+                    <h1>SENTINEL</h1>
+                </div>
+                <div class="user-profile" onclick="app.auth.logout()">
+                    <i class="ph ph-sign-out"></i>
+                </div>
+            </header>
+
+            <main id="main-content">
+                <!-- View: Dashboard -->
+                <section id="view-dashboard" class="view active">
+                    <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h2>My Devices</h2>
+                            <p>Report and manage your assigned hardware</p>
+                        </div>
+                        <button class="btn secondary" style="padding: 10px;" onclick="app.dashboard.openCustomizeModal()">
+                            <i class="ph ph-faders"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="dashboard-grid">
+                        <div class="card glass-panel device-card" id="card-vr">
+                            <div class="device-header">
+                                <i class="ph ph-headset"></i>
+                                <div>
+                                    <h3>Meta Quest 3</h3>
+                                    <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('vr', 'Meta Quest 3')" id="sn-display-vr">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
+                                </div>
+                            </div>
+                            <div class="device-status">
+                                <span class="status-indicator online" id="status-vr">Operational</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button id="report-btn-vr" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;" onclick="app.dashboard.openReportModal('Meta Quest 3', 'Meta Quest 3', 'status-vr')">
+                                    Report Status
+                                </button>
+                                <button id="replace-btn-vr" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('vr', 'Meta Quest 3')">
+                                    Replace
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card glass-panel device-card" id="card-vr3s">
+                            <div class="device-header">
+                                <i class="ph ph-headset"></i>
+                                <div>
+                                    <h3>Meta Quest 3S</h3>
+                                    <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('vr3s', 'Meta Quest 3S')" id="sn-display-vr3s">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
+                                </div>
+                            </div>
+                            <div class="device-status">
+                                <span class="status-indicator online" id="status-vr3s">Operational</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button id="report-btn-vr3s" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;" onclick="app.dashboard.openReportModal('Meta Quest 3S', 'Meta Quest 3S', 'status-vr3s')">
+                                    Report Status
+                                </button>
+                                <button id="replace-btn-vr3s" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('vr3s', 'Meta Quest 3S')">
+                                    Replace
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card glass-panel device-card" id="card-glasses">
+                            <div class="device-header">
+                                <i class="ph ph-sunglasses"></i>
+                                <div>
+                                    <h3>Ray-Ban Meta Gen 2</h3>
+                                    <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('glasses', 'Ray-Ban Meta Gen 2')" id="sn-display-glasses">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
+                                </div>
+                            </div>
+                            <div class="device-status">
+                                <span class="status-indicator online" id="status-glasses">Operational</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button id="report-btn-glasses" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;" onclick="app.dashboard.openReportModal('Ray-Ban Meta Gen 2', 'Ray-Ban Meta Gen 2', 'status-glasses')">
+                                    Report Status
+                                </button>
+                                <button id="replace-btn-glasses" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('glasses', 'Ray-Ban Meta Gen 2')">
+                                    Replace
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card glass-panel device-card" id="card-tablet">
+                            <div class="device-header">
+                                <i class="ph ph-device-tablet"></i>
+                                <div>
+                                    <h3>Samsung Tablet</h3>
+                                    <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('tablet', 'Samsung Tablet')" id="sn-display-tablet">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
+                                </div>
+                            </div>
+                            <div class="device-status">
+                                <span class="status-indicator online" id="status-tablet">Operational</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button id="report-btn-tablet" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;" onclick="app.dashboard.openReportModal('Samsung Tablet', 'Samsung Tablet', 'status-tablet')">
+                                    Report Status
+                                </button>
+                                <button id="replace-btn-tablet" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('tablet', 'Samsung Tablet')">
+                                    Replace
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card glass-panel device-card" id="card-demo">
+                            <div class="device-header">
+                                <i class="ph ph-device-mobile"></i>
+                                <div>
+                                    <h3>Samsung Demo Device</h3>
+                                    <p><span class="text-sm" style="cursor: pointer; color: var(--primary);" onclick="app.dashboard.editSN('demo', 'Samsung Demo Device')" id="sn-display-demo">SN: Click to set <i class="ph ph-pencil-simple"></i></span></p>
+                                </div>
+                            </div>
+                            <div class="device-status">
+                                <span class="status-indicator online" id="status-demo">Operational</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                                <button id="report-btn-demo" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px;" onclick="app.dashboard.openReportModal('Samsung Demo Device', 'Samsung Demo Device', 'status-demo')">
+                                    Report Status
+                                </button>
+                                <button id="replace-btn-demo" class="btn secondary" style="flex: 1; padding: 10px; font-size: 13px; background: transparent; border: 1px solid var(--border); color: var(--primary);" onclick="app.dashboard.openReplacementModal('demo', 'Samsung Demo Device')">
+                                    Replace
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn secondary full-width mt-20" onclick="app.dashboard.openAddDeviceModal()" style="border-style: dashed;">
+                        <i class="ph ph-plus"></i> Add Additional Smart Glasses
+                    </button>
+                </section>
+
+                <!-- View: Intake Form -->
+                <section id="view-intake" class="view">
+                    <div class="view-header">
+                        <h2>Diagnostic Wizard</h2>
+                        <p>Step-by-step troubleshooting walkthrough</p>
+                    </div>
+
+                    <div class="wizard-container glass-panel">
+                        <div class="wizard-step active" id="step-sn">
+                            <h3>1. Identify Device</h3>
+                            <p>Select the device you are troubleshooting.</p>
+                            <div class="form-group mb-10" style="text-align: left;">
+                                <select id="diagnostic-device-select">
+                                    <option value="">Select a device...</option>
+                                    <!-- Options will be dynamically populated in app.js -->
+                                </select>
+                            </div>
+                            <div class="form-group mb-10" style="text-align: left;">
+                                <label style="text-align: left; display: block; margin-bottom: 4px;">Issue Category (Optional)</label>
+                                <select id="diag-category">
+                                    <option value="N/A">N/A</option>
+                                    <option value="Hardware Damage">Hardware Damage</option>
+                                    <option value="Battery/Power">Battery / Power</option>
+                                    <option value="Software/OS Issue">Software / OS Issue</option>
+                                    <option value="Connectivity/WiFi">Connectivity / WiFi</option>
+                                    <option value="Missing Accessories">Missing Accessories</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-20" style="text-align: left;">
+                                <label style="text-align: left; display: block; margin-bottom: 4px;">Store Location / Number (Optional)</label>
+                                <input type="text" id="diag-store" placeholder="e.g. Best Buy #1234">
+                            </div>
+                            <div class="validation-message" id="sn-error"></div>
+                            <button class="btn primary" onclick="app.intake.validateSN()">Start Diagnostic <i class="ph ph-arrow-right"></i></button>
+                        </div>
+
+                        <div class="wizard-step" id="step-logic">
+                            <div id="logic-tree-container"></div>
+                        </div>
+
+                        <div class="wizard-step" id="step-resolution">
+                            <h3 id="resolution-title">Final Resolution</h3>
+                            <div class="resolution-box" id="resolution-content"></div>
+
+                            <div class="wizard-actions">
+                                <button class="btn secondary" onclick="app.intake.reset()">Start Over</button>
+                                <button class="btn primary" id="complete-intake-btn" onclick="app.intake.complete()">Complete Diagnostic</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-container mt-20" style="margin-top: 32px; margin-bottom: 32px;">
+                        <div class="view-header" style="margin-bottom: 16px;">
+                            <h2 style="font-size: 20px;">Frequently Asked Questions</h2>
+                            <p style="font-size: 13px;">Quick fixes for common issues</p>
+                        </div>
+                        <div id="rep-faq-list" style="display: flex; flex-direction: column; gap: 12px;">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- View: Credential Request -->
+                <section id="view-credentials" class="view">
+                    <div class="view-header">
+                        <h2>Credential Request</h2>
+                        <p>Automated Ops Support form letter</p>
+                    </div>
+
+                    <div class="card glass-panel form-card">
+                        <div class="form-group">
+                            <label for="rep-name">Representative Name</label>
+                            <input type="text" id="rep-name" placeholder="John Doe">
+                        </div>
+                        <div class="form-group">
+                            <label for="system-select">Target System</label>
+                            <select id="system-select">
+                                <option value="Salesforce">Salesforce</option>
+                                <option value="Workday">Workday</option>
+                                <option value="Repsley">Repsley</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="reason">Reason for Reset</label>
+                            <textarea id="reason" rows="3" placeholder="e.g. Locked out due to multiple failed attempts"></textarea>
+                        </div>
+                        
+                        <button class="btn primary full-width" onclick="app.credentials.draftEmail()">
+                            <i class="ph ph-paper-plane-right"></i> Submit Request
+                        </button>
+                    </div>
+
+                    <!-- My Meta AI Credentials Card -->
+                    <div class="card glass-panel mt-20" id="my-meta-ai-card">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Meta_Platforms_Inc._logo.svg" alt="Meta Logo" style="width: 28px; height: 28px; object-fit: contain;">
+                            <h3 style="font-size: 16px; margin: 0;">My Meta AI Credentials</h3>
+                        </div>
+                        <div id="meta-ai-creds-loading" class="text-sm text-muted">
+                            <i class="ph ph-spinner ph-spin"></i> Loading credentials...
+                        </div>
+                        <div id="meta-ai-creds-content" style="display: none; font-size: 13px;">
+                            <div class="form-group mb-10">
+                                <label>Login Email</label>
+                                <div style="display: flex; align-items: center; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px;">
+                                    <span style="flex: 1;" id="my-meta-email"></span>
+                                </div>
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Password</label>
+                                <div style="display: flex; align-items: center; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px;">
+                                    <span style="flex: 1; filter: blur(4px); transition: filter 0.2s;" id="my-meta-pass"></span>
+                                    <i class="ph ph-eye" style="cursor: pointer; color: var(--text-muted);" onclick="document.getElementById('my-meta-pass').style.filter = document.getElementById('my-meta-pass').style.filter === 'none' ? 'blur(4px)' : 'none'"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="meta-ai-creds-error" style="display: none;" class="text-sm" style="color: var(--danger);">
+                            No Meta AI credentials found for your name.
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Bottom Navigation -->
+            <nav class="bottom-nav glass-panel">
+                <div class="nav-item active" onclick="app.nav.goTo('dashboard')" data-target="view-dashboard">
+                    <i class="ph ph-devices"></i>
+                    <span>My Devices</span>
+                </div>
+                <div class="nav-item" onclick="app.nav.goTo('intake')" data-target="view-intake">
+                    <i class="ph ph-clipboard-text"></i>
+                    <span>Diagnostics</span>
+                </div>
+                <div class="nav-item" onclick="app.nav.goTo('credentials')" data-target="view-credentials">
+                    <i class="ph ph-key"></i>
+                    <span>Credentials</span>
+                </div>
+            </nav>
+
+            <!-- Report Status Modal -->
+            <div id="report-modal" class="modal hidden">
+                <div class="modal-backdrop" onclick="app.dashboard.closeReportModal()"></div>
+                <div class="modal-content glass-panel">
+                    <h3>Report Device Status</h3>
+                    <p id="modal-device-name" class="text-muted mb-10"></p>
+                    <div class="form-group mb-10">
+                        <label>Perceived Status</label>
+                        <select id="report-status-select">
+                            <option value="Operational">Operational</option>
+                            <option value="Having Issues">Having Issues</option>
+                            <option value="Broken/Unusable">Broken / Unusable</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-10">
+                        <label>Issue Category (Optional)</label>
+                        <select id="report-category">
+                            <option value="N/A">N/A</option>
+                            <option value="Hardware Damage">Hardware Damage</option>
+                            <option value="Battery/Power">Battery / Power</option>
+                            <option value="Software/OS Issue">Software / OS Issue</option>
+                            <option value="Connectivity/WiFi">Connectivity / WiFi</option>
+                            <option value="Missing Accessories">Missing Accessories</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-10">
+                        <label>Store Location / Number (Optional)</label>
+                        <input type="text" id="report-store" placeholder="e.g. Best Buy #1234">
+                    </div>
+                    <div class="form-group mb-20">
+                        <label>Additional Notes (Optional)</label>
+                        <textarea id="report-notes" rows="2" placeholder="Describe any issues..."></textarea>
+                    </div>
+                    <div class="wizard-actions">
+                        <button class="btn secondary" onclick="app.dashboard.closeReportModal()">Cancel</button>
+                        <button class="btn primary" onclick="app.dashboard.submitReport()">Submit Report</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customize Dashboard Modal -->
+            <div id="customize-modal" class="modal hidden">
+                <div class="modal-backdrop" onclick="app.dashboard.closeCustomizeModal()"></div>
+                <div class="modal-content glass-panel">
+                    <h3>Customize Dashboard</h3>
+                    <p class="text-muted mb-20">Toggle the devices you currently have assigned.</p>
+                    
+                    <div class="form-group mb-10" style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="margin: 0; font-weight: 500;">Meta Quest 3</label>
+                        <label class="toggle-switch"><input type="checkbox" id="toggle-vr"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="form-group mb-10" style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="margin: 0; font-weight: 500;">Meta Quest 3S</label>
+                        <label class="toggle-switch"><input type="checkbox" id="toggle-vr3s"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="form-group mb-10" style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="margin: 0; font-weight: 500;">Ray-Ban Meta Gen 2</label>
+                        <label class="toggle-switch"><input type="checkbox" id="toggle-glasses"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="form-group mb-10" style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="margin: 0; font-weight: 500;">Samsung Tablet</label>
+                        <label class="toggle-switch"><input type="checkbox" id="toggle-tablet"><span class="toggle-slider"></span></label>
+                    </div>
+                    <div class="form-group mb-20" id="demo-toggle-group" style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="margin: 0; font-weight: 500;">Samsung Demo Device</label>
+                        <label class="toggle-switch"><input type="checkbox" id="toggle-demo"><span class="toggle-slider"></span></label>
+                    </div>
+                    
+                    <div id="dynamic-toggles-container"></div>
+
+                    <button class="btn primary full-width" onclick="app.dashboard.saveCustomizations()">Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Add Device Modal -->
+            <div id="add-device-modal" class="modal hidden">
+                <div class="modal-backdrop" onclick="app.dashboard.closeAddDeviceModal()"></div>
+                <div class="modal-content glass-panel">
+                    <h3>Add Smart Glasses</h3>
+                    <p class="text-muted mb-20">Select the model to add to your dashboard.</p>
+                    
+                    <div class="form-group mb-20">
+                        <label>Smart Glasses Model</label>
+                        <select id="new-glasses-model">
+                            <optgroup label="Classic Frames">
+                                <option value="Wayfarer (Standard)">Wayfarer (Standard)</option>
+                                <option value="Wayfarer (Large)">Wayfarer (Large)</option>
+                                <option value="Headliner">Headliner</option>
+                                <option value="Skyler">Skyler</option>
+                            </optgroup>
+                            <optgroup label="Optics Line">
+                                <option value="Blayzer (Standard)">Blayzer (Standard)</option>
+                                <option value="Blayzer (Large)">Blayzer (Large)</option>
+                                <option value="Scriber">Scriber</option>
+                            </optgroup>
+                            <optgroup label="AR/HUD Edition">
+                                <option value="Meta Ray-Ban Display">Meta Ray-Ban Display</option>
+                            </optgroup>
+                            <optgroup label="Oakley Meta Collection">
+                                <option value="Oakley Meta HSTN">Oakley Meta HSTN</option>
+                                <option value="Oakley Meta Vanguard">Oakley Meta Vanguard</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="wizard-actions">
+                        <button class="btn secondary" onclick="app.dashboard.closeAddDeviceModal()">Cancel</button>
+                        <button class="btn primary" onclick="app.dashboard.addDynamicGlasses()">Add Device</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Replacement Request Modal -->
+            <div id="replacement-modal" class="modal hidden">
+                <div class="modal-backdrop" onclick="app.dashboard.closeReplacementModal()"></div>
+                <div class="modal-content glass-panel animate-fade-in" style="max-width: 480px; width: 90%;">
+                    <h3>Request Device Replacement</h3>
+                    <p class="text-muted mb-20" style="font-size: 13px;">Please review and complete the details for this replacement request.</p>
+                    
+                    <input type="hidden" id="replace-device-key">
+                    
+                    <div class="form-group mb-10">
+                        <label>Device Model</label>
+                        <input type="text" id="replace-device-name" disabled style="background: rgba(255, 255, 255, 0.05); cursor: not-allowed;">
+                    </div>
+                    
+                    <div class="form-group mb-10">
+                        <label>Serial Number</label>
+                        <input type="text" id="replace-device-sn" placeholder="Enter Serial Number" style="width: 100%;">
+                    </div>
+                    
+                    <div class="form-group mb-10">
+                        <label>Reason for Replacement</label>
+                        <select id="replace-reason-select" style="width: 100%;">
+                            <option value="Hardware Damage">Hardware Damage</option>
+                            <option value="Screen Damage">Screen Damage</option>
+                            <option value="Battery Failure">Battery Failure</option>
+                            <option value="Defective - Won't Power On">Defective - Won't Power On</option>
+                            <option value="Lost/Stolen">Lost / Stolen</option>
+                            <option value="Missing Accessories">Missing Accessories</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group mb-20">
+                        <label>Additional Notes (Optional)</label>
+                        <textarea id="replace-notes" rows="3" placeholder="Explain the reason for replacement, symptoms, or shipping instructions..." style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border); padding: 10px; background: var(--bg-input); color: var(--text-main); font-family: inherit; font-size: 13px; resize: none;"></textarea>
+                    </div>
+                    
+                    <div class="wizard-actions">
+                        <button class="btn secondary" onclick="app.dashboard.closeReplacementModal()">Cancel</button>
+                        <button class="btn primary" onclick="app.dashboard.submitReplacementRequest()">Submit Request</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBt-h7sFmI9MiO6hWZcXEGPEdlRxat0S9g",
+            authDomain: "sentinel-f77ba.firebaseapp.com",
+            projectId: "sentinel-f77ba",
+            storageBucket: "sentinel-f77ba.firebasestorage.app",
+            messagingSenderId: "1090550692649",
+            appId: "1:1090550692649:web:dbb4d9aade527d49a79538"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+    </script>
+    <!-- Scripts -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+       (function(){
+          emailjs.init({
+             publicKey: "9nLywE3ododpCdTWS",
+          });
+       })();
+    </script>
+    <script src="app.js?v=6"></script>
+</body>
+</html>

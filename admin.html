@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SENTINEL - Admin</title>
+    
+    <meta name="theme-color" content="#0064E0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .data-table-container { width: 100%; overflow-x: auto; margin-bottom: 20px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--bg-surface); }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        th, td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+        th { background: #F5F6F7; color: var(--text-muted); font-weight: 500; }
+        tr:hover td { background: #F0F2F5; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Auth Screen -->
+        <section id="view-auth" class="view flex-active login-screen">
+            <div class="logo" style="justify-content: center; margin-bottom: 24px; flex-direction: column; align-items: center; gap: 8px;">
+                <div id="sentinel-logo-slot" style="width: 110px; height: 110px; display: flex; align-items: center; justify-content: center;">
+                    <img src="sentinel-logo.png" alt="SENTINEL Logo" style="width: 110px; height: 110px; object-fit: contain; border-radius: 22px;">
+                </div>
+                <h1 style="font-size: 42px; font-weight: 700; letter-spacing: 6px; margin: 0;">SENTINEL</h1>
+                <p style="font-size: 13px; color: var(--text-muted); margin: 0; letter-spacing: 1px;">Admin Command Center</p>
+            </div>
+            <div class="login-box card glass-panel">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="tab-login" onclick="adminApp.switchTab('login')">Admin Login</button>
+                </div>
+                
+                <!-- Login Form -->
+                <div id="auth-login">
+                    <div class="form-group mb-10">
+                        <input type="email" id="login-email" placeholder="Email (@2020companies.com)">
+                    </div>
+                    <div class="form-group mb-20">
+                        <input type="password" id="login-pass" placeholder="Password">
+                        <div style="text-align: right; margin-top: 8px;">
+                            <a href="#" onclick="adminApp.resetPassword(); return false;" style="color: var(--primary); font-size: 13px; text-decoration: none;">Request Account Reset</a>
+                        </div>
+                    </div>
+                    <button class="btn primary full-width" onclick="adminApp.login()">Secure Login <i class="ph ph-lock-key-open"></i></button>
+                </div>
+
+
+                <div class="validation-message mt-10" id="auth-error"></div>
+            </div>
+        </section>
+
+        <!-- Main Admin Interface -->
+        <div id="admin-content" style="display: none; height: 100%; flex-direction: column;">
+            <header class="app-header">
+                <div class="logo">
+                    <i class="ph ph-shield-check"></i>
+                    <h1>SENTINEL Admin</h1>
+                </div>
+                <div class="user-profile" onclick="adminApp.logout()">
+                    <i class="ph ph-sign-out"></i>
+                </div>
+            </header>
+
+            <main>
+                <div class="view-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                    <div>
+                        <h2>Fleet Data Collection</h2>
+                        <p>Aggregated hardware reports from all representatives.</p>
+                    </div>
+                    <button class="btn primary" onclick="adminApp.exportToCSV()">
+                        <i class="ph ph-microsoft-excel-logo"></i> Export to CSV
+                    </button>
+                </div>
+
+                <div class="admin-tabs" style="display: flex; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-wrap: wrap;">
+                    <button class="btn primary admin-tab-btn" id="tab-btn-data" onclick="adminApp.switchAdminTab('data')"><i class="ph ph-table"></i> Data Grids</button>
+                    <button class="btn secondary admin-tab-btn" id="tab-btn-replacements" onclick="adminApp.switchAdminTab('replacements')"><i class="ph ph-arrows-clockwise"></i> Replacements</button>
+                    <button class="btn secondary admin-tab-btn" id="tab-btn-analytics" onclick="adminApp.switchAdminTab('analytics')"><i class="ph ph-chart-pie-slice"></i> Fleet Analytics</button>
+                    <button class="btn secondary admin-tab-btn" id="tab-btn-faq" onclick="adminApp.switchAdminTab('faq')"><i class="ph ph-book-open-text"></i> FAQ Management</button>
+                    <button class="btn secondary admin-tab-btn" id="tab-btn-admins" onclick="adminApp.switchAdminTab('admins')"><i class="ph ph-user-plus"></i> Admin Management</button>
+                    <button class="btn secondary admin-tab-btn" id="tab-btn-logs" onclick="adminApp.switchAdminTab('logs')"><i class="ph ph-list-magnifying-glass"></i> System Logs</button>
+                </div>
+
+                <div id="admin-view-data">
+                    <div class="dashboard-grid">
+                    <!-- Global Stats (Live) -->
+                    <div class="card glass-panel" style="padding: 20px;">
+                        <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Live Fleet Status</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                            <div style="text-align: center; padding: 16px; background: rgba(49,162,76,0.07); border-radius: var(--radius-md); border: 1px solid rgba(49,162,76,0.15);">
+                                <div style="font-size: 32px; font-weight: 700; color: var(--success);" id="live-stat-online">0</div>
+                                <div class="text-muted text-sm" style="margin-top: 4px;">Operational</div>
+                            </div>
+                            <div style="text-align: center; padding: 16px; background: rgba(245,166,35,0.07); border-radius: var(--radius-md); border: 1px solid rgba(245,166,35,0.15);">
+                                <div style="font-size: 32px; font-weight: 700; color: var(--warning);" id="live-stat-issues">0</div>
+                                <div class="text-muted text-sm" style="margin-top: 4px;">Having Issues</div>
+                            </div>
+                            <div style="text-align: center; padding: 16px; background: rgba(228,30,63,0.07); border-radius: var(--radius-md); border: 1px solid rgba(228,30,63,0.15);">
+                                <div style="font-size: 32px; font-weight: 700; color: var(--danger);" id="live-stat-broken">0</div>
+                                <div class="text-muted text-sm" style="margin-top: 4px;">Broken/RMA</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Collated Data Table -->
+                    <div class="card glass-panel" style="padding: 0; margin-bottom: 24px;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="font-size: 16px; margin-bottom: 16px;">Live Representative Reports</h3>
+                                <div class="search-bar" style="margin-bottom: 0; min-width: 300px;">
+                                    <i class="ph ph-magnifying-glass"></i>
+                                    <input type="text" id="search-input" placeholder="Search by Rep Name or Device..." onkeyup="adminApp.filterTable()">
+                                </div>
+                            </div>
+                            <button class="btn" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 13px;" onclick="adminApp.deleteSelectedReports('reports-table')">
+                                <i class="ph ph-trash"></i> Delete Selected
+                            </button>
+                        </div>
+                        <div class="data-table-container">
+                            <table id="reports-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px; text-align: center;"><input type="checkbox" onclick="adminApp.toggleSelectAll('reports-table', this.checked)" style="cursor: pointer;"></th>
+                                        <th>Date</th>
+                                        <th>Representative</th>
+                                        <th>Device</th>
+                                        <th>Store</th>
+                                        <th>Status</th>
+                                        <th>Category</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by admin.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Diagnostic Wizard Escalations -->
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="font-size: 16px; margin-bottom: 16px;">Diagnostic Wizard Escalations</h3>
+                                <div class="search-bar" style="margin-bottom: 0; min-width: 300px;">
+                                    <i class="ph ph-magnifying-glass"></i>
+                                    <input type="text" id="diag-search-input" placeholder="Search by Rep Name or Device..." onkeyup="adminApp.filterDiagTable()">
+                                </div>
+                            </div>
+                            <button class="btn" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 13px;" onclick="adminApp.deleteSelectedReports('diagnostics-table')">
+                                <i class="ph ph-trash"></i> Delete Selected
+                            </button>
+                        </div>
+                        <div class="data-table-container">
+                            <table id="diagnostics-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px; text-align: center;"><input type="checkbox" onclick="adminApp.toggleSelectAll('diagnostics-table', this.checked)" style="cursor: pointer;"></th>
+                                        <th>Date</th>
+                                        <th>Representative</th>
+                                        <th>Device</th>
+                                        <th>Store</th>
+                                        <th>Status</th>
+                                        <th>Category</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by admin.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Fleet Users & Devices -->
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                            <h3 style="font-size: 16px; margin: 0;">Representative Fleet Profiles</h3>
+                        </div>
+                        <div style="padding: 16px 16px 0 16px;">
+                            <div class="search-bar" style="margin-bottom: 0;">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="rep-search-input" placeholder="Search representatives by name or email..." onkeyup="adminApp.filterReps()">
+                            </div>
+                        </div>
+                        <div id="users-grid" style="padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; max-height: 400px; overflow-y: auto;">
+                            <!-- Populated by admin.js -->
+                        </div>
+                    </div>
+
+                    <!-- Device Health History Search -->
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border);">
+                            <h3 style="font-size: 16px; margin: 0;">Device Health Logs</h3>
+                        </div>
+                        <div style="padding: 16px;">
+                            <div style="display: flex; gap: 12px; margin-bottom: 0;">
+                                <div class="search-bar" style="margin-bottom: 0; flex: 1;">
+                                    <i class="ph ph-magnifying-glass"></i>
+                                    <input type="text" id="sn-search-input" placeholder="Enter Serial Number..." onkeypress="if(event.key === 'Enter') adminApp.searchDeviceHistory()">
+                                </div>
+                                <button class="btn primary" style="padding: 0 24px; font-weight: 500; border-radius: var(--radius-md);" onclick="adminApp.searchDeviceHistory()">Search</button>
+                            </div>
+                            <div id="device-health-results" style="display: none; margin-top: 16px;">
+                                <div id="reliability-flag" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); color: var(--danger); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 16px; font-weight: 500; align-items: center; gap: 8px;">
+                                    <i class="ph ph-warning-circle" style="font-size: 18px;"></i>
+                                    <span>Reliability Flag: This device has experienced excessive "Down" events in the last 30 days.</span>
+                                </div>
+                                <div class="data-table-container" style="margin-bottom: 0; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;">
+                                    <table id="device-health-table" style="margin-bottom: 0;">
+                                        <thead style="background-color: var(--surface-hover);">
+                                            <tr>
+                                                <th style="padding-left: 16px;">Date</th>
+                                                <th>Event Type</th>
+                                                <th>Status</th>
+                                                <th>Reporter</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Populated by searchDeviceHistory -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Credential Requests Table -->
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="font-size: 16px; margin: 0;">Pending Credential Requests</h3>
+                            <button class="btn secondary" style="padding: 8px 12px; font-size: 12px; flex: 0 0 auto;" onclick="adminApp.clearRequests()">Clear All</button>
+                        </div>
+                        <div class="data-table-container" style="margin-bottom: 0;">
+                            <table id="credentials-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Representative</th>
+                                        <th>Target System</th>
+                                        <th>Reason</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by admin.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Reset Requests Table -->
+                    <div class="card glass-panel" style="padding: 0;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="font-size: 16px; margin: 0; color: var(--danger);">Pending Account Resets</h3>
+                                <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;">Warning: You must manually delete the user's Authentication account in the Firebase Console before resolving.</p>
+                            </div>
+                        </div>
+                        <div class="data-table-container" style="margin-bottom: 0;">
+                            <table id="resets-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date Requested</th>
+                                        <th>Target Email Account</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by admin.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div> <!-- End of dashboard-grid -->
+                </div> <!-- End of admin-view-data -->
+
+                <!-- Replacements Tab -->
+                <div id="admin-view-replacements" style="display: none;">
+                    <div class="dashboard-grid">
+                        <!-- Create Replacement Form -->
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 4px; color: var(--primary);"><i class="ph ph-arrows-clockwise"></i> Create Replacement Request</h3>
+                            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 20px;">Fill out this form on behalf of a rep. Submitting will log the request and open a pre-filled email to <strong>JDikio.Meta@2020companies.com</strong>.</p>
+                            <div class="form-group mb-10">
+                                <label>Representative Name <span style="color:var(--danger);">*</span></label>
+                                <input type="text" id="admin-replace-rep" placeholder="e.g. Jane Smith">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Representative Email</label>
+                                <input type="email" id="admin-replace-email" placeholder="e.g. jsmith@2020companies.com">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Device Name <span style="color:var(--danger);">*</span></label>
+                                <input type="text" id="admin-replace-device" placeholder="e.g. Meta Quest 3">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Serial Number <span style="color:var(--danger);">*</span></label>
+                                <input type="text" id="admin-replace-sn" placeholder="e.g. 1WMHH2A0X12345">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Reason for Replacement</label>
+                                <select id="admin-replace-reason">
+                                    <option value="Hardware Damage">Hardware Damage</option>
+                                    <option value="Screen Damage">Screen Damage</option>
+                                    <option value="Battery Failure">Battery Failure</option>
+                                    <option value="Defective &mdash; Won't Power On">Defective &mdash; Won't Power On</option>
+                                    <option value="Lost / Stolen">Lost / Stolen</option>
+                                    <option value="Missing Accessories">Missing Accessories</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group mb-20">
+                                <label>Additional Notes</label>
+                                <textarea id="admin-replace-notes" rows="2" placeholder="Optional details..."></textarea>
+                            </div>
+                            <div class="validation-message mb-10" id="admin-replace-error"></div>
+                            <button class="btn primary full-width" onclick="adminApp.submitAdminReplacement()">
+                                <i class="ph ph-paper-plane-right"></i> Log Request &amp; Draft Email
+                            </button>
+                        </div>
+
+                        <!-- Pending Requests Table -->
+                        <div class="card glass-panel" style="padding: 0;">
+                            <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <h3 style="font-size: 16px; margin: 0;">Pending Request Log</h3>
+                                    <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;">Real-time queue of all logged replacement requests.</p>
+                                </div>
+                                <button class="btn" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 13px;" onclick="adminApp.clearReplacements()">
+                                    <i class="ph ph-trash"></i> Clear All
+                                </button>
+                            </div>
+                            <div class="data-table-container" style="margin-bottom: 0;">
+                                <table id="replacements-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Representative</th>
+                                            <th>Device</th>
+                                            <th>Serial Number</th>
+                                            <th>Reason</th>
+                                            <th>Notes</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Populated by admin.js -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="admin-view-analytics" style="display: none;">
+                    <!-- Global Stats (Historical) -->
+                    <h3 style="font-size: 16px; margin-bottom: 12px; color: var(--text-main);">All-Time Historical Reports</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                        <div class="card glass-panel" style="text-align: center; padding: 16px;">
+                            <div style="font-size: 24px; font-weight: 700; color: var(--success);" id="hist-stat-online">0</div>
+                            <div class="text-muted text-sm">Operational Reports</div>
+                        </div>
+                        <div class="card glass-panel" style="text-align: center; padding: 16px;">
+                            <div style="font-size: 24px; font-weight: 700; color: var(--warning);" id="hist-stat-issues">0</div>
+                            <div class="text-muted text-sm">Issue Reports</div>
+                        </div>
+                        <div class="card glass-panel" style="text-align: center; padding: 16px;">
+                            <div style="font-size: 24px; font-weight: 700; color: var(--danger);" id="hist-stat-broken">0</div>
+                            <div class="text-muted text-sm">Broken Reports</div>
+                        </div>
+                    </div>
+
+
+                    <div class="dashboard-grid">
+                        <div class="card glass-panel" style="padding: 24px; display: flex; flex-direction: column; align-items: center;">
+                            <h3 style="margin-bottom: 16px;">Overall Fleet Health</h3>
+                            <div style="position: relative; height: 300px; width: 100%; display: flex; justify-content: center;">
+                                <canvas id="healthPieChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card glass-panel" style="padding: 24px; display: flex; flex-direction: column; align-items: center;">
+                            <h3 style="margin-bottom: 16px;">Retailer Distribution</h3>
+                            <div style="position: relative; height: 300px; width: 100%; display: flex; justify-content: center;">
+                                <canvas id="retailerDoughnutChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="card glass-panel" style="padding: 24px; grid-column: 1 / -1;">
+                            <h3 style="margin-bottom: 16px;">Device Model Breakdown</h3>
+                            <div style="position: relative; height: 350px; width: 100%;">
+                                <canvas id="modelBarChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FAQ Management Tab -->
+                <div id="admin-view-faq" style="display: none;">
+                    <div class="dashboard-grid">
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 16px; color: var(--primary);">Create New FAQ</h3>
+                            <div class="form-group mb-10">
+                                <label>Question</label>
+                                <input type="text" id="admin-faq-q" placeholder="e.g. How do I pair the Ray-Ban Meta Gen 2 glasses?">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Answer</label>
+                                <textarea id="admin-faq-a" rows="4" placeholder="Detailed answer..."></textarea>
+                            </div>
+                            <div class="form-group mb-20">
+                                <label>Image Attachment (Optional)</label>
+                                <input type="file" id="admin-faq-image" accept="image/*" style="padding: 10px;">
+                            </div>
+                            <button class="btn primary full-width" onclick="adminApp.addFaq()" id="btn-add-faq">Publish FAQ <i class="ph ph-plus"></i></button>
+                        </div>
+                        
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 16px;">Active Knowledge Base</h3>
+                            <div id="admin-faq-list" style="display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Populated via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Management Tab -->
+                <div id="admin-view-admins" style="display: none;">
+                    <div class="dashboard-grid">
+                        <!-- Credentials Migration Tool -->
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 16px; color: var(--primary);">Secure Credentials Migration Tool</h3>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+                                Use this utility to securely migrate Meta AI logins from the public Google Sheets spreadsheet directly into Cloud Firestore (`/credentials/{email}`). 
+                                Once the migration is successfully complete, the Google Sheets spreadsheet can be set to <strong>"Restricted"</strong> without impacting active representatives.
+                            </p>
+                            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                                <button class="btn primary" onclick="adminApp.migrateCredentials()" id="btn-migrate-creds">
+                                    <i class="ph ph-database-backup"></i> Run Credentials Migration
+                                </button>
+                                <div id="migration-status" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">
+                                    Status: Ready
+                                </div>
+                            </div>
+                            <div id="migration-progress-container" style="display: none; margin-top: 16px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                                    <span id="migration-progress-text">Migrating accounts...</span>
+                                    <span id="migration-progress-pct">0%</span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden;">
+                                    <div id="migration-progress-bar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.2s;"></div>
+                                </div>
+                            </div>
+                            <div id="migration-log" style="display: none; margin-top: 16px; max-height: 150px; overflow-y: auto; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: monospace; font-size: 11px; background: rgba(0, 0, 0, 0.2); color: var(--text-main);">
+                            </div>
+                        </div>
+
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 16px; color: var(--primary);">Provision New Admin Account</h3>
+                            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Use this form to securely create a new administrator. They will be granted full access to the Admin Dashboard.</p>
+                            <div class="form-group mb-10">
+                                <label>First Name</label>
+                                <input type="text" id="new-admin-first" placeholder="e.g. John">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Last Name</label>
+                                <input type="text" id="new-admin-last" placeholder="e.g. Doe">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Email Address</label>
+                                <input type="email" id="new-admin-email" placeholder="Must be @2020companies.com">
+                            </div>
+                            <div class="form-group mb-10">
+                                <label>Temporary Password</label>
+                                <input type="password" id="new-admin-pass" placeholder="Create a strong password">
+                            </div>
+                            <div class="form-group mb-20">
+                                <label>Confirm Password</label>
+                                <input type="password" id="new-admin-confirm-pass" placeholder="Re-enter password">
+                            </div>
+                            <button class="btn primary full-width" onclick="adminApp.createAdmin()" id="btn-create-admin">Provision Administrator <i class="ph ph-shield-plus"></i></button>
+                            <div id="create-admin-error" class="validation-message mt-10"></div>
+                        </div>
+
+                        <div class="card glass-panel" style="padding: 24px;">
+                            <h3 style="margin-bottom: 16px;">Active Administrators</h3>
+                            <div id="admin-list" style="display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Populated via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Logs Tab -->
+                <div id="admin-view-logs" style="display: none;">
+                    <div class="card glass-panel" style="padding: 0; margin-bottom: 24px;">
+                        <div style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h3 style="font-size: 16px; margin-bottom: 16px;">View Logger & Interactions</h3>
+                                <div class="search-bar" style="margin-bottom: 0; min-width: 300px;">
+                                    <i class="ph ph-magnifying-glass"></i>
+                                    <input type="text" id="search-logs-input" placeholder="Search by User, Event, or Device..." onkeyup="adminApp.filterLogsTable()">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:10px;">
+                                <button class="btn primary" onclick="adminApp.exportLogsToCSV()">
+                                    <i class="ph ph-microsoft-excel-logo"></i> Export Logs
+                                </button>
+                                <button class="btn" id="btn-delete-logs" style="background:transparent; border:1px solid var(--danger); color:var(--danger);" onclick="adminApp.deleteAllLogs()">
+                                    <i class="ph ph-trash"></i> Delete All Logs
+                                </button>
+                            </div>
+                        </div>
+                        <div class="data-table-container">
+                            <table id="logs-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Type</th>
+                                        <th>Action / View</th>
+                                        <th>User ID</th>
+                                        <th>Metadata / User Agent</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated by admin.js -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBt-h7sFmI9MiO6hWZcXEGPEdlRxat0S9g",
+            authDomain: "sentinel-f77ba.firebaseapp.com",
+            projectId: "sentinel-f77ba",
+            storageBucket: "sentinel-f77ba.firebasestorage.app",
+            messagingSenderId: "1090550692649",
+            appId: "1:1090550692649:web:dbb4d9aade527d49a79538"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+    </script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+       (function(){
+          emailjs.init({
+             publicKey: "9nLywE3ododpCdTWS",
+          });
+       })();
+    </script>
+    <script src="admin.js?v=7"></script>
+</body>
+</html>
