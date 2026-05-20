@@ -234,7 +234,8 @@ const app = {
                     errorEl.innerText = "User profile not found in database.";
                 }
             } catch (error) {
-                errorEl.innerText = "Invalid email or password.";
+                console.error("Login error details:", error);
+                errorEl.innerText = "Invalid email or password. Details: " + error.message;
             }
         },
 

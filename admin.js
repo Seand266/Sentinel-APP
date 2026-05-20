@@ -143,7 +143,8 @@ const adminApp = {
                 errorEl.innerText = "Admin profile not found.";
             }
         } catch (error) {
-            errorEl.innerText = "Invalid email or password.";
+            console.error("Login error details:", error);
+            errorEl.innerText = "Invalid email or password. Details: " + error.message;
         }
     },
 
