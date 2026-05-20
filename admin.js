@@ -336,26 +336,23 @@ const adminApp = {
                 const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
                 this._completeLogin({ ...userData, role: 'admin' }, email);
             } else {
-                // Fallback check: is this user a legacy admin?
-                const legacyAdminDoc = await db.collection('admins').doc(email).get();
-                if (legacyAdminDoc.exists) {
-                    errorEl.innerText = "Provisioning secure claims, please wait...";
-                    errorEl.style.color = 'var(--warning)';
-                    try {
-                        const migrateFn = firebase.functions().httpsCallable('migrateCustomClaims');
-                        await migrateFn();
-                        
-                        // Force refresh token to get new claims
-                        tokenResult = await userCredential.user.getIdTokenResult(true);
-                        if (tokenResult.claims.admin === true) {
-                            const doc = await db.collection('users').doc(email).get();
-                            const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
-                            this._completeLogin({ ...userData, role: 'admin' }, email);
-                            return;
-                        }
-                    } catch (migrationErr) {
-                        console.error("Auto-migration failed:", migrationErr);
+                // Check and self-heal claims for this admin securely
+                errorEl.innerText = "Provisioning secure claims, please wait...";
+                errorEl.style.color = 'var(--warning)';
+                try {
+                    const selfHealFn = firebase.functions().httpsCallable('selfHealMyClaims');
+                    await selfHealFn();
+                    
+                    // Force refresh token to get new claims
+                    tokenResult = await userCredential.user.getIdTokenResult(true);
+                    if (tokenResult.claims.admin === true) {
+                        const doc = await db.collection('users').doc(email).get();
+                        const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
+                        this._completeLogin({ ...userData, role: 'admin' }, email);
+                        return;
                     }
+                } catch (selfHealErr) {
+                    console.error("Claims self-healing failed:", selfHealErr);
                 }
                 
                 await auth.signOut();
@@ -400,24 +397,22 @@ const adminApp = {
                         const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
                         this._completeLogin({ ...userData, role: 'admin' }, user.email);
                     } else {
-                        // Fallback check: is this user a legacy admin?
-                        const legacyAdminDoc = await db.collection('admins').doc(user.email).get();
-                        if (legacyAdminDoc.exists) {
-                            try {
-                                const migrateFn = firebase.functions().httpsCallable('migrateCustomClaims');
-                                await migrateFn();
-                                
-                                // Force refresh token to get new claims
-                                tokenResult = await user.getIdTokenResult(true);
-                                if (tokenResult.claims.admin === true) {
-                                    const doc = await db.collection('users').doc(user.email).get();
-                                    const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
-                                    this._completeLogin({ ...userData, role: 'admin' }, user.email);
-                                    return;
-                                }
-                            } catch (migrationErr) {
-                                console.error("Session auto-migration failed:", migrationErr);
+                        // Self-heal claims for this session securely
+                        console.log("[Security] Admin custom claims missing. Attempting secure self-healing...");
+                        try {
+                            const selfHealFn = firebase.functions().httpsCallable('selfHealMyClaims');
+                            await selfHealFn();
+                            
+                            // Force refresh token to get new claims
+                            tokenResult = await user.getIdTokenResult(true);
+                            if (tokenResult.claims.admin === true) {
+                                const doc = await db.collection('users').doc(user.email).get();
+                                const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
+                                this._completeLogin({ ...userData, role: 'admin' }, user.email);
+                                return;
                             }
+                        } catch (selfHealErr) {
+                            console.error("Session claims self-healing failed:", selfHealErr);
                         }
                         console.error("[Security] Admin session blocked: missing admin claim");
                         await this.logout();

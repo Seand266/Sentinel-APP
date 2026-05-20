@@ -720,3 +720,110 @@ export const migrateCustomClaims = functions
         throw new functions.https.HttpsError("internal", "Migration failed critically: " + globalError.message);
       }
   });
+
+/**
+ * 4. SECURE SELF-HEALING OF USER CUSTOM CLAIMS
+ * Allows any logged-in user to securely request their own claims to be set
+ * based on the allowlist or legacy databases.
+ */
+export const selfHealMyClaims = functions
+  .runWith({
+    timeoutSeconds: 30,
+    memory: "256MB",
+  })
+  .https.onCall(async (data, context) => {
+    // A. ENFORCE AUTHENTICATION
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be logged in to heal your custom claims."
+      );
+    }
+
+    const { uid, token } = context.auth;
+    const userEmail = token.email?.toLowerCase().trim();
+
+    if (!userEmail) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Invalid account user session. Missing email."
+      );
+    }
+
+    try {
+      // 1. Check Allowlist first
+      const allowlistRef = db.collection("allowlist").doc(userEmail);
+      const allowlistDoc = await allowlistRef.get();
+
+      let role: "admin" | "user" | null = null;
+
+      if (allowlistDoc.exists) {
+        const alData = allowlistDoc.data();
+        role = alData?.role || "user";
+        
+        // Ensure status and registeredUid are set in allowlist
+        await allowlistRef.set({
+          status: "registered",
+          registeredUid: uid,
+          healedAt: new Date().toISOString(),
+        }, { merge: true });
+      } else {
+        // 2. Fallback to legacy check
+        const legacyAdminDoc = await db.collection("admins").doc(userEmail).get();
+        if (legacyAdminDoc.exists) {
+          role = "admin";
+          // Backfill allowlist securely
+          await allowlistRef.set({
+            role: "admin",
+            status: "registered",
+            registeredUid: uid,
+            migratedAt: new Date().toISOString(),
+            source: "self-healing-legacy-admin",
+          }, { merge: true });
+        } else {
+          const legacyUserDoc = await db.collection("users").doc(userEmail).get();
+          if (legacyUserDoc.exists) {
+            role = "user";
+            // Backfill allowlist securely
+            await allowlistRef.set({
+              role: "user",
+              status: "registered",
+              registeredUid: uid,
+              migratedAt: new Date().toISOString(),
+              source: "self-healing-legacy-user",
+            }, { merge: true });
+          }
+        }
+      }
+
+      if (!role) {
+        functions.logger.warn(`Security Event: Blocked claims self-healing for un-allowlisted user: ${userEmail}`);
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Your email address is not authorized in the database. Please contact an administrator."
+        );
+      }
+
+      // 3. Set custom user claims
+      await admin.auth().setCustomUserClaims(uid, {
+        role: role,
+        admin: role === "admin",
+      });
+
+      functions.logger.info(`Security Event: Successfully healed custom claims for ${userEmail} as role '${role}'`);
+
+      return {
+        success: true,
+        role: role,
+      };
+    } catch (err: any) {
+      if (err instanceof functions.https.HttpsError) {
+        throw err;
+      }
+      functions.logger.error("Self-healing claims operation failed:", err);
+      throw new functions.https.HttpsError(
+        "internal",
+        "An unexpected error occurred during claims self-healing validation."
+      );
+    }
+  });

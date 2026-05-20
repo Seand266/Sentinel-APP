@@ -304,20 +304,45 @@ const app = {
                     try {
                         const errorEl = document.getElementById('auth-error');
                         // Force refresh token result to grab latest custom claims
-                        const tokenResult = await user.getIdTokenResult(true);
-                        const claims = tokenResult.claims;
+                        let tokenResult = await user.getIdTokenResult(true);
+                        let claims = tokenResult.claims;
+
+                        if (claims.role !== 'user' && claims.admin !== true) {
+                            console.log("[Security] Custom claims missing. Attempting secure self-healing...");
+                            if (errorEl) {
+                                errorEl.innerText = "Verifying credentials, please wait...";
+                                errorEl.style.color = 'var(--warning)';
+                            }
+                            try {
+                                const selfHealFn = firebase.app().functions('us-central1').httpsCallable('selfHealMyClaims');
+                                const healRes = await selfHealFn();
+                                console.log("[Security] Claims healed successfully. Role resolved:", healRes.data?.role);
+                                
+                                // Force refresh token to pull newly provisioned claims
+                                tokenResult = await user.getIdTokenResult(true);
+                                claims = tokenResult.claims;
+                            } catch (healErr) {
+                                console.error("[Security] Self-healing failed:", healErr);
+                            }
+                        }
 
                         if (claims.role === 'user' || claims.admin === true) {
                             const doc = await db.collection('users').doc(user.email).get();
                             if (doc.exists) {
                                 await this._completeLogin(doc.data(), user.email);
                             } else {
-                                if (errorEl) errorEl.innerText = "User profile not found in database.";
+                                if (errorEl) {
+                                    errorEl.innerText = "User profile not found in database.";
+                                    errorEl.style.color = 'var(--danger)';
+                                }
                                 await this.logout();
                             }
                         } else {
                             console.error("[Security] Session blocked: missing custom claims");
-                            if (errorEl) errorEl.innerText = "Access blocked: Your email is not validated in the Allowlist.";
+                            if (errorEl) {
+                                errorEl.innerText = "Access blocked: Your email is not validated in the Allowlist.";
+                                errorEl.style.color = 'var(--danger)';
+                            }
                             await this.logout();
                         }
                     } catch (err) {
