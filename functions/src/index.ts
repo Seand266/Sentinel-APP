@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions";
+import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import axios from "axios";
 
@@ -45,7 +45,9 @@ export const sendSecureEmail = functions
       );
     }
 
-    const isResetRequest = ticketType === "Account Reset Request";
+    const isResetRequest =
+      ticketType === "Account Reset Request" ||
+      ticketType === "Admin Account Reset Request";
 
     // A. ENFORCE AUTHENTICATION (except for password resets)
     if (!context.auth && !isResetRequest) {

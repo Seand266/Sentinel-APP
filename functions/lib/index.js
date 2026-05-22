@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.selfHealMyClaims = exports.migrateCustomClaims = exports.registerUser = exports.selfHealMyCredential = exports.syncSpreadsheetCredentials = exports.sendSecureEmail = void 0;
 exports.withRequiredRole = withRequiredRole;
-const functions = require("firebase-functions");
+const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const axios_1 = require("axios");
 // Initialize the Firebase Admin SDK
@@ -30,7 +30,8 @@ exports.sendSecureEmail = functions
     if (!details || typeof details !== "string" || details.length > 3000) {
         throw new functions.https.HttpsError("invalid-argument", "Invalid or too long details parameter.");
     }
-    const isResetRequest = ticketType === "Account Reset Request";
+    const isResetRequest = ticketType === "Account Reset Request" ||
+        ticketType === "Admin Account Reset Request";
     // A. ENFORCE AUTHENTICATION (except for password resets)
     if (!context.auth && !isResetRequest) {
         throw new functions.https.HttpsError("unauthenticated", "You must be authenticated to send notifications.");

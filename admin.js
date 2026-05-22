@@ -301,12 +301,15 @@ const adminApp = {
                 email: email,
                 date: new Date().toISOString()
             });
-            if (typeof emailjs !== 'undefined') {
-                emailjs.send("service_syb4oto", "template_0tx65cr", {
-                    ticket_type: "Admin Account Reset Request",
-                    rep_name: email,
+            try {
+                const sendSecureEmail = firebase.app().functions('us-central1').httpsCallable('sendSecureEmail');
+                await sendSecureEmail({
+                    ticketType: "Admin Account Reset Request",
+                    repName: email,
                     details: "An admin has requested a password reset/clear."
-                }).catch(e => console.error(e));
+                });
+            } catch (e) {
+                console.error("Secure admin email dispatch failed:", e);
             }
             errorEl.innerText = "Account reset request sent! Please wait for an Admin to clear your account before trying to sign up again.";
             errorEl.style.color = 'var(--success)';
