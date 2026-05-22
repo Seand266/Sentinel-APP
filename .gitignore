@@ -71,5 +71,8 @@ node_modules/
 # Local preview build folder containing injected secrets (do not commit!)
 local_build/
 
-# Local scratch data dumps (do not commit!)
-scratch/users_dump.json
+# Local scratch folder and diagnostic scripts (do not commit!)
+scratch/
+auth_export.json
+functions/diag.js
+functions/test_login.js
