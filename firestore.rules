@@ -82,11 +82,9 @@ service cloud.firestore {
       allow update: if false; // Immutable requests
     }
 
-    // Support legacy reset_requests naming
+    // Support legacy reset_requests naming (Write-Only via Server functions; Admin Read/Delete)
     match /reset_requests/{requestId} {
-      allow create: if request.resource.data.keys().hasOnly(['email', 'date']) 
-                    && request.resource.data.email is string
-                    && request.resource.data.email.matches('.*@2020companies\\.com');
+      allow create: if false; // Only written server-side via Cloud Functions
       allow read, delete: if isAdmin();
       allow update: if false;
     }

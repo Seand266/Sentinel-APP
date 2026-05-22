@@ -59,7 +59,52 @@ export const sendSecureEmail = functions
 
     // Determine identity for logging and rate limiting
     const uid = context.auth ? context.auth.uid : `ip_${context.rawRequest?.ip || "unknown"}`;
-    const userEmail = context.auth ? (context.auth.token.email || "unknown@domain.com") : (repName || "unknown@domain.com");
+    let userEmail = context.auth ? (context.auth.token.email || "unknown@domain.com") : (repName || "unknown@domain.com");
+
+    // If it is a password reset request, perform strict checks and write to Firestore
+    if (isResetRequest) {
+      if (!userEmail || typeof userEmail !== "string" || !userEmail.includes("@")) {
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          "A valid email address is required for password resets."
+        );
+      }
+      const sanitizedEmail = userEmail.trim().toLowerCase();
+      const DOMAIN_WHITELIST = "@2020companies.com";
+      if (!sanitizedEmail.endsWith(DOMAIN_WHITELIST)) {
+        functions.logger.warn(`Security Event: Blocked reset request for unauthorized domain: ${sanitizedEmail}`);
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          `Only ${DOMAIN_WHITELIST} email accounts can request password resets.`
+        );
+      }
+
+      // Check if user exists in Firestore users or allowlist collection
+      const userProfileRef = db.collection("users").doc(sanitizedEmail);
+      const allowlistRef = db.collection("allowlist").doc(sanitizedEmail);
+      
+      const [profileDoc, allowlistDoc] = await Promise.all([
+        userProfileRef.get(),
+        allowlistRef.get()
+      ]);
+
+      if (!profileDoc.exists && !allowlistDoc.exists) {
+        functions.logger.warn(`Security Event: Blocked reset request for unregistered email: ${sanitizedEmail}`);
+        throw new functions.https.HttpsError(
+          "not-found",
+          "This email address is not registered in our system."
+        );
+      }
+
+      // Add to reset_requests collection securely on the server
+      await db.collection("reset_requests").add({
+        email: sanitizedEmail,
+        date: new Date().toISOString()
+      });
+
+      functions.logger.info(`Security Event: Registered password reset request for: ${sanitizedEmail}`);
+      userEmail = sanitizedEmail; // Use the sanitized corporate email for rate limiting and emailing
+    }
 
     // B. ENFORCE RATE LIMITS
     const now = Date.now();

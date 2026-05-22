@@ -297,20 +297,16 @@ const adminApp = {
             return;
         }
         try {
-            await db.collection('reset_requests').add({
-                email: email,
-                date: new Date().toISOString()
+            errorEl.innerText = "Submitting reset request...";
+            errorEl.style.color = 'var(--primary)';
+
+            const sendSecureEmail = firebase.app().functions('us-central1').httpsCallable('sendSecureEmail');
+            await sendSecureEmail({
+                ticketType: "Admin Account Reset Request",
+                repName: email,
+                details: "An admin has requested a password reset/clear."
             });
-            try {
-                const sendSecureEmail = firebase.app().functions('us-central1').httpsCallable('sendSecureEmail');
-                await sendSecureEmail({
-                    ticketType: "Admin Account Reset Request",
-                    repName: email,
-                    details: "An admin has requested a password reset/clear."
-                });
-            } catch (e) {
-                console.error("Secure admin email dispatch failed:", e);
-            }
+
             errorEl.innerText = "Account reset request sent! Please wait for an Admin to clear your account before trying to sign up again.";
             errorEl.style.color = 'var(--success)';
         } catch (err) {
