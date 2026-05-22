@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.selfHealMyClaims = exports.migrateCustomClaims = exports.registerUser = exports.withRequiredRole = exports.selfHealMyCredential = exports.syncSpreadsheetCredentials = exports.sendSecureEmail = void 0;
+exports.selfHealMyClaims = exports.migrateCustomClaims = exports.registerUser = exports.selfHealMyCredential = exports.syncSpreadsheetCredentials = exports.sendSecureEmail = void 0;
+exports.withRequiredRole = withRequiredRole;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const axios_1 = require("axios");
@@ -318,7 +319,6 @@ function withRequiredRole(requiredRole, handler) {
         return handler(data, context);
     };
 }
-exports.withRequiredRole = withRequiredRole;
 /**
  * SECURE SERVER-SIDE USER REGISTRATION AND CLAIMS PROVISIONING
  */
