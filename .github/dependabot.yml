@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # 1. Enable automated updates for npm dependencies in Cloud Functions
+  - package-ecosystem: "npm"
+    directory: "/functions"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    allow:
+      - dependency-type: "all"
+
+  # 2. Keep GitHub Actions deployment workflows updated
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
