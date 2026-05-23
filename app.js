@@ -236,14 +236,23 @@ const app = {
                 await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
                 
                 // Sign in with Firebase Auth
-                await auth.signInWithEmailAndPassword(email, pass);
+                const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+                const emailLower = email.toLowerCase();
                 
                 // Fetch extended profile data from Firestore
-                const doc = await db.collection('users').doc(email).get();
+                const doc = await db.collection('users').doc(emailLower).get();
                 if (doc.exists) {
-                    await this._completeLogin(doc.data(), email);
+                    await this._completeLogin(doc.data(), emailLower);
                 } else {
-                    errorEl.innerText = "User profile not found in database.";
+                    // Fallback for Admins who are not in the users collection
+                    const tokenResult = await userCredential.user.getIdTokenResult(true);
+                    if (tokenResult.claims.admin === true) {
+                        const adminDoc = await db.collection('admins').doc(emailLower).get();
+                        const adminData = adminDoc.exists ? adminDoc.data() : { first: 'Administrator', last: '' };
+                        await this._completeLogin({ ...adminData, role: 'admin' }, emailLower);
+                    } else {
+                        errorEl.innerText = "User profile not found in database.";
+                    }
                 }
             } catch (error) {
                 console.error("Login error details:", error);
@@ -323,9 +332,15 @@ const app = {
                         }
 
                         if (claims.role === 'user' || claims.admin === true) {
-                            const doc = await db.collection('users').doc(user.email).get();
+                            const emailLower = user.email.toLowerCase();
+                            const doc = await db.collection('users').doc(emailLower).get();
                             if (doc.exists) {
-                                await this._completeLogin(doc.data(), user.email);
+                                await this._completeLogin(doc.data(), emailLower);
+                            } else if (claims.admin === true) {
+                                // If they are an admin, look up in the admins collection instead of kicking them out
+                                const adminDoc = await db.collection('admins').doc(emailLower).get();
+                                const adminData = adminDoc.exists ? adminDoc.data() : { first: 'Administrator', last: '' };
+                                await this._completeLogin({ ...adminData, role: 'admin' }, emailLower);
                             } else {
                                 if (errorEl) {
                                     errorEl.innerText = "User profile not found in database.";

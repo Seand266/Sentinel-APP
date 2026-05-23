@@ -330,10 +330,15 @@ const adminApp = {
             const userCredential = await auth.signInWithEmailAndPassword(email, pass);
             let tokenResult = await userCredential.user.getIdTokenResult(true);
             
+            const emailLower = email.toLowerCase();
             if (tokenResult.claims.admin === true) {
-                const doc = await db.collection('users').doc(email).get();
-                const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
-                this._completeLogin({ ...userData, role: 'admin' }, email);
+                const doc = await db.collection('users').doc(emailLower).get();
+                let userData = doc.exists ? doc.data() : null;
+                if (!userData) {
+                    const adminDoc = await db.collection('admins').doc(emailLower).get();
+                    userData = adminDoc.exists ? adminDoc.data() : { first: 'Administrator', last: '' };
+                }
+                this._completeLogin({ ...userData, role: 'admin' }, emailLower);
             } else {
                 // Check and self-heal claims for this admin securely
                 errorEl.innerText = "Provisioning secure claims, please wait...";
@@ -345,9 +350,13 @@ const adminApp = {
                     // Force refresh token to get new claims
                     tokenResult = await userCredential.user.getIdTokenResult(true);
                     if (tokenResult.claims.admin === true) {
-                        const doc = await db.collection('users').doc(email).get();
-                        const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
-                        this._completeLogin({ ...userData, role: 'admin' }, email);
+                        const doc = await db.collection('users').doc(emailLower).get();
+                        let userData = doc.exists ? doc.data() : null;
+                        if (!userData) {
+                            const adminDoc = await db.collection('admins').doc(emailLower).get();
+                            userData = adminDoc.exists ? adminDoc.data() : { first: 'Administrator', last: '' };
+                        }
+                        this._completeLogin({ ...userData, role: 'admin' }, emailLower);
                         return;
                     }
                 } catch (selfHealErr) {
@@ -392,9 +401,14 @@ const adminApp = {
                 try {
                     let tokenResult = await user.getIdTokenResult(true);
                     if (tokenResult.claims.admin === true) {
-                        const doc = await db.collection('users').doc(user.email).get();
-                        const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
-                        this._completeLogin({ ...userData, role: 'admin' }, user.email);
+                        const emailLower = user.email.toLowerCase();
+                        const doc = await db.collection('users').doc(emailLower).get();
+                        let userData = doc.exists ? doc.data() : null;
+                        if (!userData) {
+                            const adminDoc = await db.collection('admins').doc(emailLower).get();
+                            userData = adminDoc.exists ? adminDoc.data() : { first: 'Administrator', last: '' };
+                        }
+                        this._completeLogin({ ...userData, role: 'admin' }, emailLower);
                     } else {
                         // Self-heal claims for this session securely
                         console.log("[Security] Admin custom claims missing. Attempting secure self-healing...");
@@ -405,9 +419,14 @@ const adminApp = {
                             // Force refresh token to get new claims
                             tokenResult = await user.getIdTokenResult(true);
                             if (tokenResult.claims.admin === true) {
-                                const doc = await db.collection('users').doc(user.email).get();
-                                const userData = doc.exists ? doc.data() : { first: 'Administrator', last: '' };
-                                this._completeLogin({ ...userData, role: 'admin' }, user.email);
+                                const emailLower = user.email.toLowerCase();
+                                const doc = await db.collection('users').doc(emailLower).get();
+                                let userData = doc.exists ? doc.data() : null;
+                                if (!userData) {
+                                    const adminDoc = await db.collection('admins').doc(emailLower).get();
+                                    userData = adminDoc.exists ? adminDoc.data() : { first: 'Administrator', last: '' };
+                                }
+                                this._completeLogin({ ...userData, role: 'admin' }, emailLower);
                                 return;
                             }
                         } catch (selfHealErr) {

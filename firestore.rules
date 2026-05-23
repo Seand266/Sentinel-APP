@@ -13,7 +13,7 @@ service cloud.firestore {
 
     // Validates that the user belongs to the corporate domain '@2020companies.com'
     function isCompanyEmail() {
-      return isAuthenticated() && request.auth.token.email.matches('.*@2020companies\\.com');
+      return isAuthenticated() && request.auth.token.email.lower().matches('.*@2020companies\\.com');
     }
 
     // Resolves if the current user is a registered administrator in the custom claims
@@ -23,7 +23,7 @@ service cloud.firestore {
 
     // Validates if the logged-in user matches the resource's owner email
     function isOwner(email) {
-      return isAuthenticated() && request.auth.token.email == email;
+      return isAuthenticated() && request.auth.token.email.lower() == email.lower();
     }
 
     // ========================================================
