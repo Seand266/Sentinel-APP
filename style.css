@@ -80,7 +80,32 @@ body {
 
 .logo i { font-size: 28px; }
 .logo h1 { font-size: 20px; font-weight: 700; color: var(--text-main); }
-.user-profile i { font-size: 32px; color: var(--text-muted); cursor: pointer; }
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: var(--secondary);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border);
+}
+.user-profile:hover {
+    background: #d8dadf;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.user-profile i {
+    font-size: 18px !important;
+    color: var(--text-main) !important;
+    cursor: pointer;
+}
+.user-profile span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+}
 
 /* Auth System Styles */
 .login-screen {
@@ -447,7 +472,7 @@ input:checked + .toggle-slider:before {
 
 /* Sign-out icon in admin header */
 #admin-content .user-profile i {
-    font-size: 26px;
+    font-size: 18px !important;
 }
 
 /* Admin dashboard sections must stack vertically, not use the rep-app multi-col grid */
@@ -477,16 +502,17 @@ input:checked + .toggle-slider:before {
    RESPONSIVE BREAKPOINTS
    ============================================ */
 
-/* --- Tablet & Desktop: Rep App expands beyond phone shell --- */
 @media (min-width: 768px) {
     /* Let the rep app fill available width on bigger screens */
     body {
         align-items: flex-start;
+        justify-content: center;
     }
 
     #app {
-        max-width: 100%;
-        box-shadow: none;
+        max-width: 1200px;
+        margin: 0 auto;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.05);
     }
 
     /* Two-column device grid on tablet+ */
