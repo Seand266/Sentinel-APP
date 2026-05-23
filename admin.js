@@ -399,7 +399,8 @@ const adminApp = {
         auth.onAuthStateChanged(async (user) => {
             if (user) {
                 try {
-                    let tokenResult = await user.getIdTokenResult(true);
+                    // Use cached token result by default to prevent infinite token refresh loop
+                    let tokenResult = await user.getIdTokenResult(false);
                     if (tokenResult.claims.admin === true) {
                         const emailLower = user.email.toLowerCase();
                         const doc = await db.collection('users').doc(emailLower).get();

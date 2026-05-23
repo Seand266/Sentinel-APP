@@ -308,8 +308,8 @@ const app = {
                 if (user) {
                     try {
                         const errorEl = document.getElementById('auth-error');
-                        // Force refresh token result to grab latest custom claims
-                        let tokenResult = await user.getIdTokenResult(true);
+                        // Use cached token result by default to prevent infinite token refresh loop
+                        let tokenResult = await user.getIdTokenResult(false);
                         let claims = tokenResult.claims;
 
                         if (claims.role !== 'user' && claims.admin !== true) {
