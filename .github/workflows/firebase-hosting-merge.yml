@@ -32,6 +32,10 @@ jobs:
           cp test_email.html local_build/test_email.html
           cp app.js local_build/app.js
           cp admin.js local_build/admin.js
+          cp style.css local_build/style.css
+          cp encryption-service.js local_build/encryption-service.js
+          cp sentinel-logo.png local_build/sentinel-logo.png
+          cp meta-logo.svg local_build/meta-logo.svg
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
