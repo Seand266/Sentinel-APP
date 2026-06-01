@@ -16,14 +16,22 @@ jobs:
       - name: Inject Credentials/Secrets
         run: |
           echo "Injecting Firebase and EmailJS secrets into site layouts..."
-          sed -i "s/{{INDEX_FIREBASE_API_KEY}}/${{ secrets.INDEX_FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}/g" index.html
-          sed -i "s/{{INDEX_EMAILJS_PUBLIC_KEY}}/${{ secrets.INDEX_EMAILJS_PUBLIC_KEY || secrets.EMAILJS_PUBLIC_KEY }}/g" index.html
-          sed -i "s/{{ADMIN_FIREBASE_API_KEY}}/${{ secrets.ADMIN_FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}/g" admin.html
-          sed -i "s/{{ADMIN_EMAILJS_PUBLIC_KEY}}/${{ secrets.ADMIN_EMAILJS_PUBLIC_KEY || secrets.EMAILJS_PUBLIC_KEY }}/g" admin.html
-          sed -i "s/{{ADMIN_FIREBASE_API_KEY}}/${{ secrets.ADMIN_FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}/g" fetch_admin2.html
-          sed -i "s/{{ADMIN_EMAILJS_PUBLIC_KEY}}/${{ secrets.ADMIN_EMAILJS_PUBLIC_KEY || secrets.EMAILJS_PUBLIC_KEY }}/g" fetch_admin2.html
-          sed -i "s/{{ADMIN_FIREBASE_API_KEY}}/${{ secrets.ADMIN_FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}/g" setup_test_accounts.html
-          sed -i "s/{{INDEX_EMAILJS_PUBLIC_KEY}}/${{ secrets.INDEX_EMAILJS_PUBLIC_KEY || secrets.EMAILJS_PUBLIC_KEY }}/g" test_email.html
+          sed -i "s|{{INDEX_FIREBASE_API_KEY}}|${{ secrets.INDEX_FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}|g" index.html
+          sed -i "s|{{INDEX_EMAILJS_PUBLIC_KEY}}|${{ secrets.INDEX_EMAILJS_PUBLIC_KEY || secrets.EMAILJS_PUBLIC_KEY }}|g" index.html
+          sed -i "s|{{ADMIN_FIREBASE_API_KEY}}|${{ secrets.ADMIN_FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}|g" admin.html
+          sed -i "s|{{ADMIN_EMAILJS_PUBLIC_KEY}}|${{ secrets.ADMIN_EMAILJS_PUBLIC_KEY || secrets.EMAILJS_PUBLIC_KEY }}|g" admin.html
+          sed -i "s|{{ADMIN_FIREBASE_API_KEY}}|${{ secrets.ADMIN_FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}|g" fetch_admin2.html
+          sed -i "s|{{ADMIN_EMAILJS_PUBLIC_KEY}}|${{ secrets.ADMIN_EMAILJS_PUBLIC_KEY || secrets.EMAILJS_PUBLIC_KEY }}|g" fetch_admin2.html
+          sed -i "s|{{ADMIN_FIREBASE_API_KEY}}|${{ secrets.ADMIN_FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}|g" setup_test_accounts.html
+          sed -i "s|{{INDEX_EMAILJS_PUBLIC_KEY}}|${{ secrets.INDEX_EMAILJS_PUBLIC_KEY || secrets.EMAILJS_PUBLIC_KEY }}|g" test_email.html
+          echo "Syncing updated root files to local_build folder..."
+          cp index.html local_build/index.html
+          cp admin.html local_build/admin.html
+          cp fetch_admin2.html local_build/fetch_admin2.html
+          cp setup_test_accounts.html local_build/setup_test_accounts.html
+          cp test_email.html local_build/test_email.html
+          cp app.js local_build/app.js
+          cp admin.js local_build/admin.js
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
