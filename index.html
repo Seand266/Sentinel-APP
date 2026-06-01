@@ -50,30 +50,46 @@
 
                 <!-- Signup Form -->
                 <div id="auth-signup" class="hidden">
-                    <div class="form-group mb-10">
-                        <input type="text" id="signup-first" placeholder="First Name">
+                    <div id="signup-fields">
+                        <div class="form-group mb-10">
+                            <input type="text" id="signup-first" placeholder="First Name">
+                        </div>
+                        <div class="form-group mb-10">
+                            <input type="text" id="signup-last" placeholder="Last Name">
+                        </div>
+                        <div class="form-group mb-10" style="text-align: left;">
+                            <select id="signup-retailer">
+                                <option value="">Select Retailer...</option>
+                                <option value="Best Buy">Best Buy</option>
+                                <option value="Best Buy CA">Best Buy CA</option>
+                                <option value="NFM">NFM</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-10">
+                            <input type="email" id="signup-email" placeholder="Email (@2020companies.com)">
+                        </div>
+                        <div class="form-group mb-10">
+                            <input type="password" id="signup-pass" placeholder="Create Password">
+                        </div>
+                        <div class="form-group mb-20">
+                            <input type="password" id="signup-confirm-pass" placeholder="Confirm Password">
+                        </div>
+                        <button class="btn primary full-width" id="signup-primary-btn" onclick="app.auth.requestVerification()">Send Verification Code</button>
                     </div>
-                    <div class="form-group mb-10">
-                        <input type="text" id="signup-last" placeholder="Last Name">
+
+                    <div id="signup-verification" class="hidden">
+                        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 15px; text-align: center; line-height: 1.5;">
+                            A 6-digit verification code has been sent to <strong id="verification-email-target" style="color: var(--primary);"></strong>.
+                        </p>
+                        <div class="form-group mb-20">
+                            <input type="text" id="signup-verification-code" placeholder="Enter 6-Digit Code" maxlength="6" style="text-align: center; letter-spacing: 6px; font-size: 18px; font-weight: 600;">
+                        </div>
+                        <button class="btn primary full-width mb-10" id="verify-btn" onclick="app.auth.signup()">Verify & Create Account</button>
+                        <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                            <a href="#" onclick="app.auth.requestVerification(); return false;" style="color: var(--primary); text-decoration: none;">Resend Code</a>
+                            <a href="#" onclick="app.auth.cancelVerification(); return false;" style="color: var(--text-muted); text-decoration: none;">Edit Info</a>
+                        </div>
                     </div>
-                    <div class="form-group mb-10" style="text-align: left;">
-                        <select id="signup-retailer">
-                            <option value="">Select Retailer...</option>
-                            <option value="Best Buy">Best Buy</option>
-                            <option value="Best Buy CA">Best Buy CA</option>
-                            <option value="NFM">NFM</option>
-                        </select>
-                    </div>
-                    <div class="form-group mb-10">
-                        <input type="email" id="signup-email" placeholder="Email (@2020companies.com)">
-                    </div>
-                    <div class="form-group mb-10">
-                        <input type="password" id="signup-pass" placeholder="Create Password">
-                    </div>
-                    <div class="form-group mb-20">
-                        <input type="password" id="signup-confirm-pass" placeholder="Confirm Password">
-                    </div>
-                    <button class="btn primary full-width" onclick="app.auth.signup()">Create Account</button>
                 </div>
                 <div class="validation-message mt-10" id="auth-error"></div>
             </div>
@@ -323,8 +339,8 @@
                             <div class="form-group mb-10">
                                 <label>Password</label>
                                 <div style="display: flex; align-items: center; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px;">
-                                    <span style="flex: 1; filter: blur(4px); transition: filter 0.2s;" id="my-meta-pass"></span>
-                                    <i class="ph ph-eye" style="cursor: pointer; color: var(--text-muted);" onclick="document.getElementById('my-meta-pass').style.filter = document.getElementById('my-meta-pass').style.filter === 'none' ? 'blur(4px)' : 'none'"></i>
+                                    <span style="flex: 1; filter: blur(4px); transition: filter 0.2s; cursor: pointer; user-select: none;" id="my-meta-pass" onclick="app.credentials.togglePasswordBlur()" title="Click to show/hide password"></span>
+                                    <i class="ph ph-eye" id="meta-eye-icon" style="cursor: pointer; color: var(--text-muted);" onclick="app.credentials.togglePasswordBlur()" title="Click to show/hide password"></i>
                                 </div>
                             </div>
                         </div>

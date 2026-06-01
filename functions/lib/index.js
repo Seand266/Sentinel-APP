@@ -1,13 +1,37 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.selfHealMyClaims = exports.migrateCustomClaims = exports.registerUser = exports.selfHealMyCredential = exports.syncSpreadsheetCredentials = exports.sendSecureEmail = void 0;
+exports.selfHealMyClaims = exports.migrateCustomClaims = exports.registerUser = exports.requestVerificationCode = exports.selfHealMyCredential = exports.syncSpreadsheetCredentials = exports.sendSecureEmail = void 0;
 exports.withRequiredRole = withRequiredRole;
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const axios_1 = require("axios");
+const googleapis_1 = require("googleapis");
 // Initialize the Firebase Admin SDK
 admin.initializeApp();
 const db = admin.firestore();
+/**
+ * SECURE GOOGLE SHEETS CLIENT RETRIEVAL
+ * Fetches the credentials spreadsheet using Application Default Credentials (ADC) securely.
+ */
+async function fetchSpreadsheetRows() {
+    try {
+        const auth = new googleapis_1.google.auth.GoogleAuth({
+            scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+        });
+        const sheets = googleapis_1.google.sheets({ version: "v4", auth });
+        const spreadsheetId = "1SSgl60xVl_i-7nx23ch4jADCq9wZQmUR1ObRVDXDEpk";
+        const range = "A:L"; // Fetches first sheet columns A to L
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range,
+        });
+        return response.data.values || [];
+    }
+    catch (err) {
+        functions.logger.error("Google Sheets API retrieval failed:", err);
+        throw new functions.https.HttpsError("internal", "Failed to access the secure credentials spreadsheet: " + err.message);
+    }
+}
 // In-memory rate limiting map for email dispatching
 const emailRateLimitCache = new Map();
 const RATE_LIMIT_MAX = 5; // Max 5 emails per window
@@ -122,29 +146,6 @@ exports.sendSecureEmail = functions
     }
 });
 /**
- * Parses a single CSV line securely, accommodating escaped commas and quotes.
- */
-function parseCsvLine(line) {
-    const parts = [];
-    let inQ = false;
-    let curr = "";
-    for (let i = 0; i < line.length; i++) {
-        const c = line[i];
-        if (c === "\"") {
-            inQ = !inQ;
-        }
-        else if (c === "," && !inQ) {
-            parts.push(curr);
-            curr = "";
-        }
-        else {
-            curr += c;
-        }
-    }
-    parts.push(curr);
-    return parts;
-}
-/**
  * 2. SECURE GOOGLE SHEETS SYNCHRONIZER (ADMIN PORTAL ONLY)
  * Pulls all records from Google Sheets securely, matches users, and persists to Firestore.
  * No sensitive plaintext credentials ever escape to the admin's browser interface.
@@ -156,11 +157,8 @@ exports.syncSpreadsheetCredentials = functions
 })
     .https.onCall(withRequiredRole("admin", async (data, context) => {
     try {
-        // B. SECURE SERVER-SIDE SPREADSHEET RETRIEVAL
-        const spreadsheetUrl = "https://docs.google.com/spreadsheets/d/1SSgl60xVl_i-7nx23ch4jADCq9wZQmUR1ObRVDXDEpk/export?format=csv";
-        const response = await axios_1.default.get(spreadsheetUrl);
-        const text = response.data;
-        const lines = text.split("\n");
+        // B. SECURE SERVER-SIDE SPREADSHEET RETRIEVAL VIA GOOGLE SHEETS API
+        const rows = await fetchSpreadsheetRows();
         // C. FETCH REGISTERED FIRESTORE REPRESENTATIVES
         const usersSnapshot = await db.collection("users").get();
         const activeReps = {};
@@ -177,18 +175,13 @@ exports.syncSpreadsheetCredentials = functions
         let skippedCount = 0;
         const batch = db.batch();
         // D. PARSE AND MATCH RECORDS
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) {
-                skippedCount++;
-                continue;
-            }
-            const p = parseCsvLine(line);
-            if (p.length > 10) {
-                const first = p[1].replace(/"/g, "").trim().toLowerCase();
-                const last = p[2].replace(/"/g, "").trim().toLowerCase();
-                const metaEmail = p[6].replace(/"/g, "").trim();
-                const metaPass = p[10].replace(/"/g, "").trim();
+        for (let i = 1; i < rows.length; i++) {
+            const p = rows[i];
+            if (p && p.length > 10) {
+                const first = (p[1] || "").replace(/"/g, "").trim().toLowerCase();
+                const last = (p[2] || "").replace(/"/g, "").trim().toLowerCase();
+                const metaEmail = (p[6] || "").replace(/"/g, "").trim();
+                const metaPass = (p[10] || "").replace(/"/g, "").trim();
                 if (!first || !last || !metaEmail || !metaPass) {
                     skippedCount++;
                     continue;
@@ -267,25 +260,19 @@ exports.selfHealMyCredential = functions
         if (!myFirst || !myLast) {
             throw new functions.https.HttpsError("failed-precondition", "Your user profile is missing first/last name information.");
         }
-        // C. SECURELY PARSE SPREADSHEET TO MATCH CREDENTIAL RECORD
-        const spreadsheetUrl = "https://docs.google.com/spreadsheets/d/1SSgl60xVl_i-7nx23ch4jADCq9wZQmUR1ObRVDXDEpk/export?format=csv";
-        const response = await axios_1.default.get(spreadsheetUrl);
-        const text = response.data;
-        const lines = text.split("\n");
+        // C. SECURELY PARSE SPREADSHEET TO MATCH CREDENTIAL RECORD VIA GOOGLE SHEETS API
+        const rows = await fetchSpreadsheetRows();
         let foundMetaEmail = "";
         let foundMetaPass = "";
         let found = false;
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line)
-                continue;
-            const p = parseCsvLine(line);
-            if (p.length > 10) {
-                const first = p[1].replace(/"/g, "").trim().toLowerCase();
-                const last = p[2].replace(/"/g, "").trim().toLowerCase();
+        for (let i = 1; i < rows.length; i++) {
+            const p = rows[i];
+            if (p && p.length > 10) {
+                const first = (p[1] || "").replace(/"/g, "").trim().toLowerCase();
+                const last = (p[2] || "").replace(/"/g, "").trim().toLowerCase();
                 if (first === myFirst && last === myLast) {
-                    foundMetaEmail = p[6].replace(/"/g, "").trim();
-                    foundMetaPass = p[10].replace(/"/g, "").trim();
+                    foundMetaEmail = (p[6] || "").replace(/"/g, "").trim();
+                    foundMetaPass = (p[10] || "").replace(/"/g, "").trim();
                     found = true;
                     break;
                 }
@@ -351,6 +338,117 @@ function withRequiredRole(requiredRole, handler) {
     };
 }
 /**
+ * SECURE SERVER-SIDE EMAIL VERIFICATION CODE GENERATION & DISPATCH
+ */
+exports.requestVerificationCode = functions
+    .runWith({
+    secrets: ["EMAILJS_PRIVATE_KEY", "EMAILJS_SERVICE_ID", "EMAILJS_PUBLIC_KEY"],
+    timeoutSeconds: 20,
+    memory: "256MB",
+})
+    .https.onCall(async (data, context) => {
+    const { email, firstName, lastName } = data;
+    // 1. INPUT VALIDATION & SANITIZATION
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+        throw new functions.https.HttpsError("invalid-argument", "A valid email address is required.");
+    }
+    const sanitizedEmail = email.trim().toLowerCase();
+    if (!firstName || typeof firstName !== "string" || firstName.length > 50 || firstName.trim() === "") {
+        throw new functions.https.HttpsError("invalid-argument", "First name is invalid or too long.");
+    }
+    if (!lastName || typeof lastName !== "string" || lastName.length > 50 || lastName.trim() === "") {
+        throw new functions.https.HttpsError("invalid-argument", "Last name is invalid or too long.");
+    }
+    // 2. DOMAIN ENFORCEMENT
+    const DOMAIN_WHITELIST = "@2020companies.com";
+    if (!sanitizedEmail.endsWith(DOMAIN_WHITELIST)) {
+        functions.logger.warn(`Security Event: Blocked verification code request from unauthorized domain: ${sanitizedEmail}`);
+        throw new functions.https.HttpsError("permission-denied", `Only ${DOMAIN_WHITELIST} email accounts are authorized to register.`);
+    }
+    // 3. CHECK IF EMAIL ALREADY REGISTERED IN ALLOWLIST
+    const allowlistRef = db.collection("allowlist").doc(sanitizedEmail);
+    const allowlistDoc = await allowlistRef.get();
+    if (allowlistDoc.exists && allowlistDoc.data()?.status === "registered") {
+        throw new functions.https.HttpsError("already-exists", "This email address has already been registered.");
+    }
+    // 4. VERIFY REGISTRATION ELIGIBILITY (ALLOWLIST OR SPREADSHEET MATCH)
+    let isEligible = false;
+    if (allowlistDoc.exists) {
+        isEligible = true;
+    }
+    else {
+        // Dynamic spreadsheet match check
+        try {
+            functions.logger.info(`Verification Check: Inspecting spreadsheet registry for ${sanitizedEmail}`);
+            const rows = await fetchSpreadsheetRows();
+            for (let i = 1; i < rows.length; i++) {
+                const p = rows[i];
+                if (p && p.length > 6) {
+                    const sheetFirst = (p[1] || "").replace(/"/g, "").trim().toLowerCase();
+                    const sheetLast = (p[2] || "").replace(/"/g, "").trim().toLowerCase();
+                    const sheetEmail = (p[6] || "").replace(/"/g, "").trim().toLowerCase();
+                    if (sheetEmail === sanitizedEmail ||
+                        (sheetFirst === firstName.trim().toLowerCase() && sheetLast === lastName.trim().toLowerCase())) {
+                        isEligible = true;
+                        break;
+                    }
+                }
+            }
+        }
+        catch (sheetErr) {
+            functions.logger.error("Verification spreadsheet lookup failed:", sheetErr);
+        }
+    }
+    if (!isEligible) {
+        functions.logger.warn(`Security Event: Blocked verification request from unallowed email: ${sanitizedEmail}`);
+        throw new functions.https.HttpsError("permission-denied", "This email is not authorized for registration. Please contact an administrator.");
+    }
+    // 5. GENERATE AND STORE 6-DIGIT VERIFICATION CODE
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 10 * 60000); // 10 minutes from now
+    await db.collection("verification_codes").doc(sanitizedEmail).set({
+        code: code,
+        createdAt: now.toISOString(),
+        expiresAt: expiresAt.toISOString(),
+        attempts: 0,
+    });
+    // 6. SECURE EXTERNAL DISPATCH VIA EMAILJS REST API
+    const privateKey = process.env.EMAILJS_PRIVATE_KEY;
+    const serviceId = process.env.EMAILJS_SERVICE_ID;
+    const publicKey = process.env.EMAILJS_PUBLIC_KEY;
+    const templateId = "template_0tx65cr"; // Standard Report Template
+    if (!privateKey || !serviceId || !publicKey) {
+        functions.logger.error("Missing EmailJS environment secrets inside Cloud Secret Manager");
+        throw new functions.https.HttpsError("failed-precondition", "Server configuration error. Contact admin.");
+    }
+    try {
+        functions.logger.info(`Sending account verification code email to ${sanitizedEmail}`);
+        const response = await axios_1.default.post("https://api.emailjs.com/api/v1.0/email/send", {
+            service_id: serviceId,
+            template_id: templateId,
+            user_id: publicKey,
+            accessToken: privateKey,
+            template_params: {
+                ticket_type: "Account Verification Code",
+                rep_name: `${firstName} ${lastName}`,
+                details: `Your 6-digit Sentinel account verification code is: ${code}\n\nThis code will expire in 10 minutes. If you did not request this, please ignore this email.`,
+            },
+        }, {
+            headers: { "Content-Type": "application/json" },
+        });
+        return {
+            success: true,
+            message: "Verification code sent.",
+            status: response.status,
+        };
+    }
+    catch (error) {
+        functions.logger.error("Verification code EmailJS Secure Dispatch Failed:", error.response?.data || error.message);
+        throw new functions.https.HttpsError("internal", "Verification code delivery failed.");
+    }
+});
+/**
  * SECURE SERVER-SIDE USER REGISTRATION AND CLAIMS PROVISIONING
  */
 exports.registerUser = functions
@@ -359,7 +457,7 @@ exports.registerUser = functions
     memory: "256MB",
 })
     .https.onCall(async (data, context) => {
-    const { email, password, firstName, lastName, retailer } = data;
+    const { email, password, firstName, lastName, retailer, code } = data;
     // 1. INPUT VALIDATION & SANITIZATION
     if (!email || typeof email !== "string" || !email.includes("@")) {
         throw new functions.https.HttpsError("invalid-argument", "A valid email address is required.");
@@ -374,6 +472,30 @@ exports.registerUser = functions
     if (!retailer || typeof retailer !== "string") {
         throw new functions.https.HttpsError("invalid-argument", "Retailer is invalid or missing.");
     }
+    if (!code || typeof code !== "string" || code.trim().length !== 6) {
+        throw new functions.https.HttpsError("invalid-argument", "A valid 6-digit verification code is required.");
+    }
+    // 1a. VERIFY THE VERIFICATION CODE SECURELY
+    const verificationRef = db.collection("verification_codes").doc(sanitizedEmail);
+    const verificationDoc = await verificationRef.get();
+    if (!verificationDoc.exists) {
+        throw new functions.https.HttpsError("invalid-argument", "No verification code found. Please request one first.");
+    }
+    const verificationData = verificationDoc.data();
+    const nowISO = new Date().toISOString();
+    if (nowISO > (verificationData?.expiresAt || "")) {
+        await verificationRef.delete();
+        throw new functions.https.HttpsError("deadline-exceeded", "The verification code has expired. Please request a new code.");
+    }
+    if ((verificationData?.attempts || 0) >= 3) {
+        throw new functions.https.HttpsError("permission-denied", "Too many failed verification attempts. Please request a new code.");
+    }
+    if (verificationData?.code !== code.trim()) {
+        await verificationRef.update({
+            attempts: admin.firestore.FieldValue.increment(1)
+        });
+        throw new functions.https.HttpsError("invalid-argument", "Invalid verification code. Please try again.");
+    }
     // 2. DOMAIN ENFORCEMENT
     const DOMAIN_WHITELIST = "@2020companies.com";
     if (!sanitizedEmail.endsWith(DOMAIN_WHITELIST)) {
@@ -383,14 +505,52 @@ exports.registerUser = functions
     // 3. ALLOWLIST AND TRANSACTION VALIDATION
     const allowlistRef = db.collection("allowlist").doc(sanitizedEmail);
     const userProfileRef = db.collection("users").doc(sanitizedEmail);
+    let allowlistDoc = await allowlistRef.get();
+    // DYNAMIC SHEET-BASED ALLOWLIST VERIFICATION
+    if (!allowlistDoc.exists) {
+        try {
+            functions.logger.info(`Dynamic Allowlist: Inspecting spreadsheet registry for ${sanitizedEmail}`);
+            const rows = await fetchSpreadsheetRows();
+            let isMatched = false;
+            for (let i = 1; i < rows.length; i++) {
+                const p = rows[i];
+                if (p && p.length > 6) {
+                    const sheetFirst = (p[1] || "").replace(/"/g, "").trim().toLowerCase();
+                    const sheetLast = (p[2] || "").replace(/"/g, "").trim().toLowerCase();
+                    const sheetEmail = (p[6] || "").replace(/"/g, "").trim().toLowerCase();
+                    // Check if entered email matches sheet metaEmail, or first and last names match
+                    if (sheetEmail === sanitizedEmail ||
+                        (sheetFirst === firstName.trim().toLowerCase() && sheetLast === lastName.trim().toLowerCase())) {
+                        isMatched = true;
+                        break;
+                    }
+                }
+            }
+            if (isMatched) {
+                functions.logger.info(`Dynamic Allowlist: Automatically adding representative ${sanitizedEmail} from spreadsheet`);
+                await allowlistRef.set({
+                    role: "user",
+                    status: "pending",
+                    addedBy: "system-dynamic-spreadsheet",
+                    addedAt: new Date().toISOString()
+                });
+                // Re-fetch the newly created allowlist document
+                allowlistDoc = await allowlistRef.get();
+            }
+        }
+        catch (sheetErr) {
+            functions.logger.error("Dynamic allowlist spreadsheet lookup failed:", sheetErr);
+        }
+    }
     try {
         return await db.runTransaction(async (transaction) => {
-            const allowlistDoc = await transaction.get(allowlistRef);
-            if (!allowlistDoc.exists) {
+            // Read the allowlistDoc within the transaction securely
+            const transAllowlistDoc = await transaction.get(allowlistRef);
+            if (!transAllowlistDoc.exists) {
                 functions.logger.warn(`Security Event: Blocked registration attempt from unallowed email: ${sanitizedEmail}`);
                 throw new functions.https.HttpsError("permission-denied", "This email is not authorized for registration. Please contact an administrator.");
             }
-            const allowlistData = allowlistDoc.data();
+            const allowlistData = transAllowlistDoc.data();
             if (allowlistData?.status === "registered") {
                 throw new functions.https.HttpsError("already-exists", "This email address has already been registered.");
             }
@@ -438,6 +598,8 @@ exports.registerUser = functions
                 registeredUid: authUser.uid,
                 registeredAt: new Date().toISOString(),
             });
+            // Atomic cleanup of the verification code
+            transaction.delete(verificationRef);
             functions.logger.info(`Security Event: Successfully created user ${sanitizedEmail} (UID: ${authUser.uid}) with role '${assignedRole}'`);
             return {
                 success: true,

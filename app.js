@@ -137,10 +137,12 @@ const app = {
                 document.getElementById('auth-login').classList.add('hidden');
                 document.getElementById('auth-signup').classList.remove('hidden');
             }
+            this.cancelVerification();
             document.getElementById('auth-error').innerText = "";
+            document.getElementById('auth-error').style.color = '';
         },
 
-        signup: async function() {
+        requestVerification: async function() {
             const first = document.getElementById('signup-first').value.trim();
             const last = document.getElementById('signup-last').value.trim();
             const retailer = document.getElementById('signup-retailer').value;
@@ -151,25 +153,93 @@ const app = {
 
             if (!first || !last || !retailer || !email || !pass || !confirmPass) {
                 errorEl.innerText = "Please fill in all fields.";
+                errorEl.style.color = 'var(--danger)';
                 return;
             }
 
             if (pass !== confirmPass) {
                 errorEl.innerText = "Passwords do not match.";
+                errorEl.style.color = 'var(--danger)';
                 return;
             }
 
             if (!email.endsWith('@2020companies.com')) {
                 errorEl.innerText = "Email must be a @2020companies.com domain.";
+                errorEl.style.color = 'var(--danger)';
                 return;
             }
 
-            const btn = document.querySelector('#view-auth button[onclick*="signUp"]');
-            const originalText = btn ? btn.innerHTML : 'Sign Up';
+            const btn = document.getElementById('signup-primary-btn');
+            const originalText = btn ? btn.innerHTML : 'Send Verification Code';
             if (btn) {
                 btn.disabled = true;
-                btn.innerHTML = 'Creating Account... <i class="ph ph-spinner ph-spin"></i>';
+                btn.innerHTML = 'Sending Code... <i class="ph ph-spinner ph-spin"></i>';
             }
+            errorEl.innerText = "";
+
+            try {
+                const requestVerificationCode = firebase.app().functions('us-central1').httpsCallable('requestVerificationCode');
+                await requestVerificationCode({
+                    email: email,
+                    firstName: first,
+                    lastName: last
+                });
+
+                document.getElementById('signup-fields').classList.add('hidden');
+                document.getElementById('signup-verification').classList.remove('hidden');
+                document.getElementById('verification-email-target').innerText = email;
+                document.getElementById('signup-verification-code').value = "";
+                document.getElementById('signup-verification-code').focus();
+            } catch (error) {
+                console.error("Verification code request error:", error);
+                errorEl.innerText = error.message || "Failed to send verification code.";
+                errorEl.style.color = 'var(--danger)';
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            }
+        },
+
+        cancelVerification: function() {
+            const signupFields = document.getElementById('signup-fields');
+            const signupVerification = document.getElementById('signup-verification');
+            if (signupFields) signupFields.classList.remove('hidden');
+            if (signupVerification) signupVerification.classList.add('hidden');
+            const codeInput = document.getElementById('signup-verification-code');
+            if (codeInput) codeInput.value = "";
+        },
+
+        signup: async function() {
+            const first = document.getElementById('signup-first').value.trim();
+            const last = document.getElementById('signup-last').value.trim();
+            const retailer = document.getElementById('signup-retailer').value;
+            const email = document.getElementById('signup-email').value.trim().toLowerCase();
+            const pass = document.getElementById('signup-pass').value;
+            const confirmPass = document.getElementById('signup-confirm-pass').value;
+            const code = document.getElementById('signup-verification-code').value.trim();
+            const errorEl = document.getElementById('auth-error');
+
+            if (!first || !last || !retailer || !email || !pass || !confirmPass || !code) {
+                errorEl.innerText = "Please fill in all fields.";
+                errorEl.style.color = 'var(--danger)';
+                return;
+            }
+
+            if (code.length !== 6 || isNaN(Number(code))) {
+                errorEl.innerText = "Please enter a valid 6-digit verification code.";
+                errorEl.style.color = 'var(--danger)';
+                return;
+            }
+
+            const btn = document.getElementById('verify-btn');
+            const originalText = btn ? btn.innerHTML : 'Verify & Create Account';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = 'Verifying & Creating... <i class="ph ph-spinner ph-spin"></i>';
+            }
+            errorEl.innerText = "";
 
             try {
                 // Call secure backend registration Cloud Function
@@ -179,7 +249,8 @@ const app = {
                     password: pass,
                     firstName: first,
                     lastName: last,
-                    retailer: retailer
+                    retailer: retailer,
+                    code: code
                 });
                 
                 // Automatically log user in upon successful backend creation
@@ -187,6 +258,7 @@ const app = {
             } catch (error) {
                 console.error("Registration error:", error);
                 errorEl.innerText = error.message || "Server registration failed.";
+                errorEl.style.color = 'var(--danger)';
                 if (btn) {
                     btn.disabled = false;
                     btn.innerHTML = originalText;
@@ -843,6 +915,28 @@ const app = {
 
     // --- Credential Request ---
     credentials: {
+        togglePasswordBlur: function() {
+            const passEl = document.getElementById('my-meta-pass');
+            const eyeIcon = document.getElementById('meta-eye-icon');
+            if (!passEl) return;
+            
+            // Check if currently blurred (default)
+            const isBlurred = !passEl.style.filter || passEl.style.filter.includes('blur');
+            if (isBlurred) {
+                passEl.style.filter = 'none';
+                if (eyeIcon) {
+                    eyeIcon.className = 'ph ph-eye-slash';
+                    eyeIcon.style.color = 'var(--primary)';
+                }
+            } else {
+                passEl.style.filter = 'blur(4px)';
+                if (eyeIcon) {
+                    eyeIcon.className = 'ph ph-eye';
+                    eyeIcon.style.color = 'var(--text-muted)';
+                }
+            }
+        },
+
         loadMetaCredentials: async function() {
             const loading = document.getElementById('meta-ai-creds-loading');
             const content = document.getElementById('meta-ai-creds-content');
