@@ -11,9 +11,9 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Validates that the user belongs to the corporate domain '@2020companies.com'
+    // Validates that the user belongs to the corporate domain '@2020companies.com' or '@gmail.com' (for testing)
     function isCompanyEmail() {
-      return isAuthenticated() && request.auth.token.email.lower().matches('.*@2020companies\\.com');
+      return isAuthenticated() && (request.auth.token.email.lower().matches('.*@2020companies\\.com') || request.auth.token.email.lower().matches('.*@gmail\\.com'));
     }
 
     // Resolves if the current user is a registered administrator in the custom claims

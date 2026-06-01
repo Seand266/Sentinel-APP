@@ -69,10 +69,11 @@ exports.sendSecureEmail = functions
             throw new functions.https.HttpsError("invalid-argument", "A valid email address is required for password resets.");
         }
         const sanitizedEmail = userEmail.trim().toLowerCase();
-        const DOMAIN_WHITELIST = "@2020companies.com";
-        if (!sanitizedEmail.endsWith(DOMAIN_WHITELIST)) {
+        const ALLOWED_DOMAINS = ["@2020companies.com", "@gmail.com"];
+        const hasAllowedDomain = ALLOWED_DOMAINS.some(domain => sanitizedEmail.endsWith(domain));
+        if (!hasAllowedDomain) {
             functions.logger.warn(`Security Event: Blocked reset request for unauthorized domain: ${sanitizedEmail}`);
-            throw new functions.https.HttpsError("permission-denied", `Only ${DOMAIN_WHITELIST} email accounts can request password resets.`);
+            throw new functions.https.HttpsError("permission-denied", `Only ${ALLOWED_DOMAINS.join(" or ")} email accounts can request password resets.`);
         }
         // Check if user exists in Firestore users or allowlist collection
         const userProfileRef = db.collection("users").doc(sanitizedEmail);
@@ -360,10 +361,11 @@ exports.requestVerificationCode = functions
         throw new functions.https.HttpsError("invalid-argument", "Last name is invalid or too long.");
     }
     // 2. DOMAIN ENFORCEMENT
-    const DOMAIN_WHITELIST = "@2020companies.com";
-    if (!sanitizedEmail.endsWith(DOMAIN_WHITELIST)) {
+    const ALLOWED_DOMAINS = ["@2020companies.com", "@gmail.com"];
+    const hasAllowedDomain = ALLOWED_DOMAINS.some(domain => sanitizedEmail.endsWith(domain));
+    if (!hasAllowedDomain) {
         functions.logger.warn(`Security Event: Blocked verification code request from unauthorized domain: ${sanitizedEmail}`);
-        throw new functions.https.HttpsError("permission-denied", `Only ${DOMAIN_WHITELIST} email accounts are authorized to register.`);
+        throw new functions.https.HttpsError("permission-denied", `Only ${ALLOWED_DOMAINS.join(" or ")} email accounts are authorized to register.`);
     }
     // 3. CHECK IF EMAIL ALREADY REGISTERED IN ALLOWLIST
     const allowlistRef = db.collection("allowlist").doc(sanitizedEmail);
@@ -371,9 +373,12 @@ exports.requestVerificationCode = functions
     if (allowlistDoc.exists && allowlistDoc.data()?.status === "registered") {
         throw new functions.https.HttpsError("already-exists", "This email address has already been registered.");
     }
-    // 4. VERIFY REGISTRATION ELIGIBILITY (ALLOWLIST OR SPREADSHEET MATCH)
+    // 4. VERIFY REGISTRATION ELIGIBILITY (ALLOWLIST OR SPREADSHEET MATCH OR GMAIL TEST)
     let isEligible = false;
-    if (allowlistDoc.exists) {
+    if (sanitizedEmail.endsWith("@gmail.com")) {
+        isEligible = true;
+    }
+    else if (allowlistDoc.exists) {
         isEligible = true;
     }
     else {
@@ -497,49 +502,62 @@ exports.registerUser = functions
         throw new functions.https.HttpsError("invalid-argument", "Invalid verification code. Please try again.");
     }
     // 2. DOMAIN ENFORCEMENT
-    const DOMAIN_WHITELIST = "@2020companies.com";
-    if (!sanitizedEmail.endsWith(DOMAIN_WHITELIST)) {
+    const ALLOWED_DOMAINS = ["@2020companies.com", "@gmail.com"];
+    const hasAllowedDomain = ALLOWED_DOMAINS.some(domain => sanitizedEmail.endsWith(domain));
+    if (!hasAllowedDomain) {
         functions.logger.warn(`Security Event: Blocked registration attempt from unauthorized domain: ${sanitizedEmail}`);
-        throw new functions.https.HttpsError("permission-denied", `Only ${DOMAIN_WHITELIST} email accounts are authorized to register.`);
+        throw new functions.https.HttpsError("permission-denied", `Only ${ALLOWED_DOMAINS.join(" or ")} email accounts are authorized to register.`);
     }
     // 3. ALLOWLIST AND TRANSACTION VALIDATION
     const allowlistRef = db.collection("allowlist").doc(sanitizedEmail);
     const userProfileRef = db.collection("users").doc(sanitizedEmail);
     let allowlistDoc = await allowlistRef.get();
-    // DYNAMIC SHEET-BASED ALLOWLIST VERIFICATION
+    // DYNAMIC SHEET-BASED OR GMAIL-TEST ALLOWLIST VERIFICATION
     if (!allowlistDoc.exists) {
-        try {
-            functions.logger.info(`Dynamic Allowlist: Inspecting spreadsheet registry for ${sanitizedEmail}`);
-            const rows = await fetchSpreadsheetRows();
-            let isMatched = false;
-            for (let i = 1; i < rows.length; i++) {
-                const p = rows[i];
-                if (p && p.length > 6) {
-                    const sheetFirst = (p[1] || "").replace(/"/g, "").trim().toLowerCase();
-                    const sheetLast = (p[2] || "").replace(/"/g, "").trim().toLowerCase();
-                    const sheetEmail = (p[6] || "").replace(/"/g, "").trim().toLowerCase();
-                    // Check if entered email matches sheet metaEmail, or first and last names match
-                    if (sheetEmail === sanitizedEmail ||
-                        (sheetFirst === firstName.trim().toLowerCase() && sheetLast === lastName.trim().toLowerCase())) {
-                        isMatched = true;
-                        break;
+        if (sanitizedEmail.endsWith("@gmail.com")) {
+            functions.logger.info(`Gmail Test: Automatically adding representative ${sanitizedEmail} to allowlist`);
+            await allowlistRef.set({
+                role: "user",
+                status: "pending",
+                addedBy: "gmail-testing-allowlist",
+                addedAt: new Date().toISOString()
+            });
+            allowlistDoc = await allowlistRef.get();
+        }
+        else {
+            try {
+                functions.logger.info(`Dynamic Allowlist: Inspecting spreadsheet registry for ${sanitizedEmail}`);
+                const rows = await fetchSpreadsheetRows();
+                let isMatched = false;
+                for (let i = 1; i < rows.length; i++) {
+                    const p = rows[i];
+                    if (p && p.length > 6) {
+                        const sheetFirst = (p[1] || "").replace(/"/g, "").trim().toLowerCase();
+                        const sheetLast = (p[2] || "").replace(/"/g, "").trim().toLowerCase();
+                        const sheetEmail = (p[6] || "").replace(/"/g, "").trim().toLowerCase();
+                        // Check if entered email matches sheet metaEmail, or first and last names match
+                        if (sheetEmail === sanitizedEmail ||
+                            (sheetFirst === firstName.trim().toLowerCase() && sheetLast === lastName.trim().toLowerCase())) {
+                            isMatched = true;
+                            break;
+                        }
                     }
                 }
+                if (isMatched) {
+                    functions.logger.info(`Dynamic Allowlist: Automatically adding representative ${sanitizedEmail} from spreadsheet`);
+                    await allowlistRef.set({
+                        role: "user",
+                        status: "pending",
+                        addedBy: "system-dynamic-spreadsheet",
+                        addedAt: new Date().toISOString()
+                    });
+                    // Re-fetch the newly created allowlist document
+                    allowlistDoc = await allowlistRef.get();
+                }
             }
-            if (isMatched) {
-                functions.logger.info(`Dynamic Allowlist: Automatically adding representative ${sanitizedEmail} from spreadsheet`);
-                await allowlistRef.set({
-                    role: "user",
-                    status: "pending",
-                    addedBy: "system-dynamic-spreadsheet",
-                    addedAt: new Date().toISOString()
-                });
-                // Re-fetch the newly created allowlist document
-                allowlistDoc = await allowlistRef.get();
+            catch (sheetErr) {
+                functions.logger.error("Dynamic allowlist spreadsheet lookup failed:", sheetErr);
             }
-        }
-        catch (sheetErr) {
-            functions.logger.error("Dynamic allowlist spreadsheet lookup failed:", sheetErr);
         }
     }
     try {

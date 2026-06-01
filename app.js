@@ -163,8 +163,8 @@ const app = {
                 return;
             }
 
-            if (!email.endsWith('@2020companies.com')) {
-                errorEl.innerText = "Email must be a @2020companies.com domain.";
+            if (!email.endsWith('@2020companies.com') && !email.endsWith('@gmail.com')) {
+                errorEl.innerText = "Email must be a @2020companies.com or @gmail.com domain.";
                 errorEl.style.color = 'var(--danger)';
                 return;
             }
