@@ -22,6 +22,8 @@ jobs:
           sed -i "s|{{ADMIN_EMAILJS_PUBLIC_KEY}}|${{ secrets.ADMIN_EMAILJS_PUBLIC_KEY || secrets.EMAILJS_PUBLIC_KEY }}|g" fetch_admin2.html
           sed -i "s|{{ADMIN_FIREBASE_API_KEY}}|${{ secrets.ADMIN_FIREBASE_API_KEY || secrets.FIREBASE_API_KEY }}|g" setup_test_accounts.html
           sed -i "s|{{INDEX_EMAILJS_PUBLIC_KEY}}|${{ secrets.INDEX_EMAILJS_PUBLIC_KEY || secrets.EMAILJS_PUBLIC_KEY }}|g" test_email.html
+          echo "Creating local_build directory..."
+          mkdir -p local_build
           echo "Syncing updated root files to local_build folder..."
           cp index.html local_build/index.html
           cp admin.html local_build/admin.html
