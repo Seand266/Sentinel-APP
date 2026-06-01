@@ -682,12 +682,20 @@ const adminApp = {
     },
 
     deleteUser: async function(email) {
-        if(confirm(`Are you absolutely SURE you want to permanently delete the account for ${email}? This will erase their fleet profile, history, and active sessions. This action cannot be undone.`)) {
+        if(confirm(`Are you absolutely SURE you want to permanently delete the account for ${email}? This will erase their Firebase Authentication account, fleet profile, allowed registry records, and active sessions. This action cannot be undone.`)) {
             try {
-                await db.collection('users').doc(email).delete();
-                alert("User account successfully deleted.");
+                console.log(`[Admin] Requesting secure deletion of user: ${email}`);
+                const deleteUserAccount = firebase.app().functions('us-central1').httpsCallable('deleteUserAccount');
+                const result = await deleteUserAccount({ email: email });
+                
+                if (result.data && result.data.success) {
+                    alert("User account and database records successfully deleted.");
+                } else {
+                    alert("Account deletion complete: " + (result.data.message || "Done"));
+                }
             } catch (err) {
-                alert("Failed to delete user: " + err.message);
+                console.error("[Admin] Deletion failed:", err);
+                alert("Failed to delete user completely: " + err.message);
             }
         }
     },

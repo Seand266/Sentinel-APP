@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.selfHealMyClaims = exports.migrateCustomClaims = exports.registerUser = exports.requestVerificationCode = exports.selfHealMyCredential = exports.syncSpreadsheetCredentials = exports.sendSecureEmail = void 0;
+exports.deleteUserAccount = exports.selfHealMyClaims = exports.migrateCustomClaims = exports.registerUser = exports.requestVerificationCode = exports.selfHealMyCredential = exports.syncSpreadsheetCredentials = exports.sendSecureEmail = void 0;
 exports.withRequiredRole = withRequiredRole;
 const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
@@ -835,4 +835,65 @@ exports.selfHealMyClaims = functions
         throw new functions.https.HttpsError("internal", "An unexpected error occurred during claims self-healing validation.");
     }
 });
+/**
+ * SECURE SERVER-SIDE USER ACCOUNT DELETION (ADMIN ONLY)
+ * Permanently deletes a user from Firebase Authentication, Firestore users, and Firestore allowlist.
+ */
+exports.deleteUserAccount = functions
+    .runWith({
+    timeoutSeconds: 30,
+    memory: "256MB",
+})
+    .https.onCall(withRequiredRole("admin", async (data, context) => {
+    const { email } = data;
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+        throw new functions.https.HttpsError("invalid-argument", "A valid email address is required for deletion.");
+    }
+    const sanitizedEmail = email.trim().toLowerCase();
+    // Prevent admins from deleting themselves accidentally
+    const callerEmail = context.auth?.token.email?.toLowerCase().trim();
+    if (sanitizedEmail === callerEmail) {
+        throw new functions.https.HttpsError("failed-precondition", "You cannot delete your own admin account from this dashboard.");
+    }
+    try {
+        functions.logger.info(`Admin ${callerEmail} is deleting account: ${sanitizedEmail}`);
+        // 1. Find and delete from Firebase Auth
+        let authUserDeleted = false;
+        try {
+            const authUser = await admin.auth().getUserByEmail(sanitizedEmail);
+            await admin.auth().deleteUser(authUser.uid);
+            authUserDeleted = true;
+            functions.logger.info(`Successfully deleted Auth user: ${sanitizedEmail} (UID: ${authUser.uid})`);
+        }
+        catch (authErr) {
+            if (authErr.code === "auth/user-not-found") {
+                functions.logger.warn(`User ${sanitizedEmail} not found in Firebase Auth, proceeding with DB cleanup.`);
+            }
+            else {
+                throw authErr;
+            }
+        }
+        // 2. Delete Firestore collections atomically (using batch)
+        const batch = db.batch();
+        const userRef = db.collection("users").doc(sanitizedEmail);
+        const allowlistRef = db.collection("allowlist").doc(sanitizedEmail);
+        const verificationRef = db.collection("verification_codes").doc(sanitizedEmail);
+        const credentialsRef = db.collection("credentials").doc(sanitizedEmail);
+        batch.delete(userRef);
+        batch.delete(allowlistRef);
+        batch.delete(verificationRef);
+        batch.delete(credentialsRef);
+        await batch.commit();
+        functions.logger.info(`Successfully wiped Firestore records for ${sanitizedEmail}`);
+        return {
+            success: true,
+            message: "User account and Firestore profiles successfully deleted.",
+            authDeleted: authUserDeleted
+        };
+    }
+    catch (err) {
+        functions.logger.error(`Critical error deleting user account for ${sanitizedEmail}:`, err);
+        throw new functions.https.HttpsError("internal", "Failed to completely delete user account: " + err.message);
+    }
+}));
 //# sourceMappingURL=index.js.map
