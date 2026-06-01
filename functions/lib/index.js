@@ -108,9 +108,9 @@ exports.sendSecureEmail = functions
     userLimit.count++;
     emailRateLimitCache.set(uid, userLimit);
     // C. SECURE EXTERNAL DISPATCH VIA EMAILJS REST API
-    const privateKey = process.env.EMAILJS_PRIVATE_KEY;
-    const serviceId = process.env.EMAILJS_SERVICE_ID;
-    const publicKey = process.env.EMAILJS_PUBLIC_KEY;
+    const privateKey = process.env.EMAILJS_PRIVATE_KEY?.trim();
+    const serviceId = process.env.EMAILJS_SERVICE_ID?.trim();
+    const publicKey = process.env.EMAILJS_PUBLIC_KEY?.trim();
     // Explicitly whitelist and map template IDs securely on the server
     let templateId = "template_0tx65cr"; // Standard Report Template
     if (ticketType === "Credential Request") {
@@ -419,9 +419,9 @@ exports.requestVerificationCode = functions
         attempts: 0,
     });
     // 6. SECURE EXTERNAL DISPATCH VIA EMAILJS REST API
-    const privateKey = process.env.EMAILJS_PRIVATE_KEY;
-    const serviceId = process.env.EMAILJS_SERVICE_ID;
-    const publicKey = process.env.EMAILJS_PUBLIC_KEY;
+    const privateKey = process.env.EMAILJS_PRIVATE_KEY?.trim();
+    const serviceId = process.env.EMAILJS_SERVICE_ID?.trim();
+    const publicKey = process.env.EMAILJS_PUBLIC_KEY?.trim();
     const templateId = "template_0tx65cr"; // Standard Report Template
     if (!privateKey || !serviceId || !publicKey) {
         functions.logger.error("Missing EmailJS environment secrets inside Cloud Secret Manager");
