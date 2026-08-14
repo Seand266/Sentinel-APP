@@ -766,7 +766,13 @@ const app = {
             if (!node) return;
             if (node.resolution) { this.showResolution(node); return; }
             const container = document.getElementById('logic-tree-container');
-            let html = `<div class="logic-node"><div class="logic-question">${node.question}</div><div class="options-grid multi">`;
+            
+            let question = node.question;
+            if (nodeId === 'glasses_start' && this.data.deviceType) {
+                question = `What is the primary issue with the ${this.data.deviceType} Smart Glasses?`;
+            }
+
+            let html = `<div class="logic-node"><div class="logic-question">${question}</div><div class="options-grid multi">`;
             node.options.forEach(opt => {
                 const action = opt.next ? `app.intake.loadNode('${opt.next}')` : `app.intake.showResolutionFromOption('${opt.resolution}', '${opt.type || 'success'}')`;
                 html += `<div class="option-card" onclick="${action}"><i class="ph ${opt.icon || 'ph-arrow-right'}"></i><span>${opt.label}</span></div>`;
