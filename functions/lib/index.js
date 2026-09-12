@@ -32,6 +32,80 @@ async function fetchSpreadsheetRows() {
         throw new functions.https.HttpsError("internal", "Failed to access the secure credentials spreadsheet: " + err.message);
     }
 }
+/**
+ * Normalizes text for resilient matching:
+ * - Strips diacritics / accents (e.g. ñ -> n, ó -> o)
+ * - Converts to lower case
+ * - Strips punctuation, hyphens, and whitespace
+ */
+function normalizeText(str) {
+    if (!str)
+        return "";
+    return str
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .trim();
+}
+/**
+ * Robust name comparison that handles:
+ * - Direct equality
+ * - Accented names (e.g. Muñoz-Pavón vs Munoz-Pavon)
+ * - First-name prefixes / nicknames (e.g. Yurk vs Yurkedhan)
+ * - Compound / hyphenated last names (e.g. Munoz-Pavon matching Munoz, Pavon, or Munoz-Pavon)
+ */
+function isNameMatch(inputFirst, inputLast, sheetFirst, sheetLast) {
+    const inFirst = normalizeText(inputFirst);
+    const inLast = normalizeText(inputLast);
+    const sFirst = normalizeText(sheetFirst);
+    const sLast = normalizeText(sheetLast);
+    if (!inFirst || !inLast || !sFirst || !sLast) {
+        return false;
+    }
+    // 1. Direct normalized match
+    if (inFirst === sFirst && inLast === sLast) {
+        return true;
+    }
+    // 2. First name match (supports prefixes like Yurk vs Yurkedhan)
+    const firstMatches = inFirst === sFirst ||
+        sFirst.startsWith(inFirst) ||
+        inFirst.startsWith(sFirst);
+    // 3. Last name match (supports compound surnames like Munoz-Pavon vs Munoz or Pavon)
+    const lastMatches = inLast === sLast ||
+        sLast.includes(inLast) ||
+        inLast.includes(sLast);
+    return firstMatches && lastMatches;
+}
+/**
+ * Checks if a spreadsheet row matches a user's registration details.
+ * Checks:
+ * 1. Work Email (Column 4: e.g. ymunoz-pavon.meta@2020companies.com)
+ * 2. Meta Account Email (Column 6: e.g. ASSISTEDDEMO...tfbnw.net)
+ * 3. Robust Name Match (handles accents, hyphens, compound surnames, nicknames)
+ */
+function isRowMatch(row, sanitizedEmail, firstName, lastName) {
+    if (!row || row.length < 5) {
+        return { matched: false, matchReason: "" };
+    }
+    const workEmail = (row[4] || "").replace(/"/g, "").trim().toLowerCase();
+    const metaEmail = (row[6] || "").replace(/"/g, "").trim().toLowerCase();
+    const sheetFirst = (row[1] || "").replace(/"/g, "").trim();
+    const sheetLast = (row[2] || "").replace(/"/g, "").trim();
+    // 1. Work Email Match (Column 4)
+    if (workEmail && workEmail === sanitizedEmail) {
+        return { matched: true, matchReason: `Work Email (${workEmail})` };
+    }
+    // 2. Meta Account Email Match (Column 6)
+    if (metaEmail && metaEmail === sanitizedEmail) {
+        return { matched: true, matchReason: `Meta Email (${metaEmail})` };
+    }
+    // 3. Robust Name Match
+    if (isNameMatch(firstName, lastName, sheetFirst, sheetLast)) {
+        return { matched: true, matchReason: `Name (${sheetFirst} ${sheetLast})` };
+    }
+    return { matched: false, matchReason: "" };
+}
 // In-memory rate limiting map for email dispatching
 const emailRateLimitCache = new Map();
 const RATE_LIMIT_MAX = 5; // Max 5 emails per window
@@ -129,7 +203,10 @@ exports.sendSecureEmail = functions
             accessToken: privateKey,
             template_params: {
                 ticket_type: ticketType,
-                rep_name: userEmail,
+                rep_name: repName || userEmail,
+                to_email: userEmail,
+                rep_email: userEmail,
+                email: userEmail,
                 details: details,
             },
         }, {
@@ -179,21 +256,27 @@ exports.syncSpreadsheetCredentials = functions
         for (let i = 1; i < rows.length; i++) {
             const p = rows[i];
             if (p && p.length > 10) {
-                const first = (p[1] || "").replace(/"/g, "").trim().toLowerCase();
-                const last = (p[2] || "").replace(/"/g, "").trim().toLowerCase();
+                const first = (p[1] || "").replace(/"/g, "").trim();
+                const last = (p[2] || "").replace(/"/g, "").trim();
+                const workEmail = (p[4] || "").replace(/"/g, "").trim().toLowerCase();
                 const metaEmail = (p[6] || "").replace(/"/g, "").trim();
                 const metaPass = (p[10] || "").replace(/"/g, "").trim();
-                if (!first || !last || !metaEmail || !metaPass) {
+                if ((!first && !workEmail) || !metaEmail || !metaPass) {
                     skippedCount++;
                     continue;
                 }
                 // Lookup matching registered user profile
                 let matchedEmail = null;
-                for (const email of Object.keys(activeReps)) {
-                    const rep = activeReps[email];
-                    if (rep.first === first && rep.last === last) {
-                        matchedEmail = email;
-                        break;
+                if (workEmail && activeReps[workEmail]) {
+                    matchedEmail = workEmail;
+                }
+                else {
+                    for (const email of Object.keys(activeReps)) {
+                        const rep = activeReps[email];
+                        if (isNameMatch(rep.first, rep.last, first, last)) {
+                            matchedEmail = email;
+                            break;
+                        }
                     }
                 }
                 if (matchedEmail) {
@@ -269,9 +352,12 @@ exports.selfHealMyCredential = functions
         for (let i = 1; i < rows.length; i++) {
             const p = rows[i];
             if (p && p.length > 10) {
-                const first = (p[1] || "").replace(/"/g, "").trim().toLowerCase();
-                const last = (p[2] || "").replace(/"/g, "").trim().toLowerCase();
-                if (first === myFirst && last === myLast) {
+                const first = (p[1] || "").replace(/"/g, "").trim();
+                const last = (p[2] || "").replace(/"/g, "").trim();
+                const workEmail = (p[4] || "").replace(/"/g, "").trim().toLowerCase();
+                const isMatch = (workEmail && workEmail === userEmail) ||
+                    isNameMatch(myFirst, myLast, first, last);
+                if (isMatch) {
                     foundMetaEmail = (p[6] || "").replace(/"/g, "").trim();
                     foundMetaPass = (p[10] || "").replace(/"/g, "").trim();
                     found = true;
@@ -384,19 +470,40 @@ exports.requestVerificationCode = functions
     else {
         // Dynamic spreadsheet match check
         try {
-            functions.logger.info(`Verification Check: Inspecting spreadsheet registry for ${sanitizedEmail}`);
+            functions.logger.info(`Verification Check: Inspecting spreadsheet registry for ${sanitizedEmail}. Input Name: "${firstName}" "${lastName}"`);
+            // --- DIAGNOSTIC START ---
+            try {
+                const auth = new googleapis_1.google.auth.GoogleAuth({
+                    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+                });
+                const sheets = googleapis_1.google.sheets({ version: "v4", auth });
+                const spreadsheetId = "1SSgl60xVl_i-7nx23ch4jADCq9wZQmUR1ObRVDXDEpk";
+                const meta = await sheets.spreadsheets.get({ spreadsheetId });
+                const sheetsInfo = meta.data.sheets?.map(s => s.properties?.title) || [];
+                functions.logger.info(`DIAGNOSTIC: Spreadsheet sheets/tabs: ${JSON.stringify(sheetsInfo)}`);
+            }
+            catch (diagErr) {
+                functions.logger.error("DIAGNOSTIC error reading sheets list:", diagErr);
+            }
+            // --- DIAGNOSTIC END ---
             const rows = await fetchSpreadsheetRows();
+            functions.logger.info(`Verification Check Spreadsheet returned ${rows.length} rows.`);
+            if (rows.length > 0) {
+                functions.logger.info(`DIAGNOSTIC: Headers (length ${rows[0].length}): ${JSON.stringify(rows[0])}`);
+            }
+            if (rows.length > 1) {
+                functions.logger.info(`DIAGNOSTIC: Row 1 sample (length ${rows[1].length}): ${JSON.stringify(rows[1])}`);
+            }
+            if (rows.length > 2) {
+                functions.logger.info(`DIAGNOSTIC: Row 2 sample (length ${rows[2].length}): ${JSON.stringify(rows[2])}`);
+            }
             for (let i = 1; i < rows.length; i++) {
                 const p = rows[i];
-                if (p && p.length > 6) {
-                    const sheetFirst = (p[1] || "").replace(/"/g, "").trim().toLowerCase();
-                    const sheetLast = (p[2] || "").replace(/"/g, "").trim().toLowerCase();
-                    const sheetEmail = (p[6] || "").replace(/"/g, "").trim().toLowerCase();
-                    if (sheetEmail === sanitizedEmail ||
-                        (sheetFirst === firstName.trim().toLowerCase() && sheetLast === lastName.trim().toLowerCase())) {
-                        isEligible = true;
-                        break;
-                    }
+                const check = isRowMatch(p, sanitizedEmail, firstName, lastName);
+                if (check.matched) {
+                    functions.logger.info(`Verification Check: Matched row ${i} via ${check.matchReason}`);
+                    isEligible = true;
+                    break;
                 }
             }
         }
@@ -411,18 +518,24 @@ exports.requestVerificationCode = functions
     // 5. GENERATE AND STORE 6-DIGIT VERIFICATION CODE
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 10 * 60000); // 10 minutes from now
+    const expiresAt = new Date(now.getTime() + 15 * 60000); // 15 minutes from now
     await db.collection("verification_codes").doc(sanitizedEmail).set({
         code: code,
         createdAt: now.toISOString(),
         expiresAt: expiresAt.toISOString(),
         attempts: 0,
     });
+    const timeString = expiresAt.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+        timeZone: "America/New_York",
+    });
     // 6. SECURE EXTERNAL DISPATCH VIA EMAILJS REST API
     const privateKey = process.env.EMAILJS_PRIVATE_KEY?.trim();
     const serviceId = process.env.EMAILJS_SERVICE_ID?.trim();
     const publicKey = process.env.EMAILJS_PUBLIC_KEY?.trim();
-    const templateId = "template_0tx65cr"; // Standard Report Template
+    const templateId = "template_2b3qdym"; // New verification code template
     if (!privateKey || !serviceId || !publicKey) {
         functions.logger.error("Missing EmailJS environment secrets inside Cloud Secret Manager");
         throw new functions.https.HttpsError("failed-precondition", "Server configuration error. Contact admin.");
@@ -435,9 +548,9 @@ exports.requestVerificationCode = functions
             user_id: publicKey,
             accessToken: privateKey,
             template_params: {
-                ticket_type: "Account Verification Code",
-                rep_name: `${firstName} ${lastName}`,
-                details: `Your 6-digit Sentinel account verification code is: ${code}\n\nThis code will expire in 10 minutes. If you did not request this, please ignore this email.`,
+                email: sanitizedEmail,
+                passcode: code,
+                time: timeString,
             },
         }, {
             headers: { "Content-Type": "application/json" },
@@ -477,29 +590,37 @@ exports.registerUser = functions
     if (!retailer || typeof retailer !== "string") {
         throw new functions.https.HttpsError("invalid-argument", "Retailer is invalid or missing.");
     }
-    if (!code || typeof code !== "string" || code.trim().length !== 6) {
-        throw new functions.https.HttpsError("invalid-argument", "A valid 6-digit verification code is required.");
-    }
-    // 1a. VERIFY THE VERIFICATION CODE SECURELY
+    // Check if the user is already allowlisted as an admin
+    const allowlistRef = db.collection("allowlist").doc(sanitizedEmail);
+    const userProfileRef = db.collection("users").doc(sanitizedEmail);
+    let allowlistDoc = await allowlistRef.get();
+    const isAdminProvisioning = allowlistDoc.exists && allowlistDoc.data()?.role === "admin";
+    const isVerificationCodeRequired = !isAdminProvisioning;
+    // 1a. VERIFY THE VERIFICATION CODE SECURELY (SKIP FOR ADMINS)
     const verificationRef = db.collection("verification_codes").doc(sanitizedEmail);
-    const verificationDoc = await verificationRef.get();
-    if (!verificationDoc.exists) {
-        throw new functions.https.HttpsError("invalid-argument", "No verification code found. Please request one first.");
-    }
-    const verificationData = verificationDoc.data();
-    const nowISO = new Date().toISOString();
-    if (nowISO > (verificationData?.expiresAt || "")) {
-        await verificationRef.delete();
-        throw new functions.https.HttpsError("deadline-exceeded", "The verification code has expired. Please request a new code.");
-    }
-    if ((verificationData?.attempts || 0) >= 3) {
-        throw new functions.https.HttpsError("permission-denied", "Too many failed verification attempts. Please request a new code.");
-    }
-    if (verificationData?.code !== code.trim()) {
-        await verificationRef.update({
-            attempts: admin.firestore.FieldValue.increment(1)
-        });
-        throw new functions.https.HttpsError("invalid-argument", "Invalid verification code. Please try again.");
+    if (isVerificationCodeRequired) {
+        if (!code || typeof code !== "string" || code.trim().length !== 6) {
+            throw new functions.https.HttpsError("invalid-argument", "A valid 6-digit verification code is required.");
+        }
+        const verificationDoc = await verificationRef.get();
+        if (!verificationDoc.exists) {
+            throw new functions.https.HttpsError("invalid-argument", "No verification code found. Please request one first.");
+        }
+        const verificationData = verificationDoc.data();
+        const nowISO = new Date().toISOString();
+        if (nowISO > (verificationData?.expiresAt || "")) {
+            await verificationRef.delete();
+            throw new functions.https.HttpsError("deadline-exceeded", "The verification code has expired. Please request a new code.");
+        }
+        if ((verificationData?.attempts || 0) >= 3) {
+            throw new functions.https.HttpsError("permission-denied", "Too many failed verification attempts. Please request a new code.");
+        }
+        if (verificationData?.code !== code.trim()) {
+            await verificationRef.update({
+                attempts: admin.firestore.FieldValue.increment(1)
+            });
+            throw new functions.https.HttpsError("invalid-argument", "Invalid verification code. Please try again.");
+        }
     }
     // 2. DOMAIN ENFORCEMENT
     const ALLOWED_DOMAINS = ["@2020companies.com", "@gmail.com"];
@@ -508,10 +629,6 @@ exports.registerUser = functions
         functions.logger.warn(`Security Event: Blocked registration attempt from unauthorized domain: ${sanitizedEmail}`);
         throw new functions.https.HttpsError("permission-denied", `Only ${ALLOWED_DOMAINS.join(" or ")} email accounts are authorized to register.`);
     }
-    // 3. ALLOWLIST AND TRANSACTION VALIDATION
-    const allowlistRef = db.collection("allowlist").doc(sanitizedEmail);
-    const userProfileRef = db.collection("users").doc(sanitizedEmail);
-    let allowlistDoc = await allowlistRef.get();
     // DYNAMIC SHEET-BASED OR GMAIL-TEST ALLOWLIST VERIFICATION
     if (!allowlistDoc.exists) {
         if (sanitizedEmail.endsWith("@gmail.com")) {
@@ -526,21 +643,17 @@ exports.registerUser = functions
         }
         else {
             try {
-                functions.logger.info(`Dynamic Allowlist: Inspecting spreadsheet registry for ${sanitizedEmail}`);
+                functions.logger.info(`Dynamic Allowlist: Inspecting spreadsheet registry for ${sanitizedEmail}. Input Name: "${firstName}" "${lastName}"`);
                 const rows = await fetchSpreadsheetRows();
+                functions.logger.info(`Dynamic Allowlist Spreadsheet returned ${rows.length} rows.`);
                 let isMatched = false;
                 for (let i = 1; i < rows.length; i++) {
                     const p = rows[i];
-                    if (p && p.length > 6) {
-                        const sheetFirst = (p[1] || "").replace(/"/g, "").trim().toLowerCase();
-                        const sheetLast = (p[2] || "").replace(/"/g, "").trim().toLowerCase();
-                        const sheetEmail = (p[6] || "").replace(/"/g, "").trim().toLowerCase();
-                        // Check if entered email matches sheet metaEmail, or first and last names match
-                        if (sheetEmail === sanitizedEmail ||
-                            (sheetFirst === firstName.trim().toLowerCase() && sheetLast === lastName.trim().toLowerCase())) {
-                            isMatched = true;
-                            break;
-                        }
+                    const check = isRowMatch(p, sanitizedEmail, firstName, lastName);
+                    if (check.matched) {
+                        functions.logger.info(`Dynamic Allowlist: Matched row ${i} via ${check.matchReason}`);
+                        isMatched = true;
+                        break;
                     }
                 }
                 if (isMatched) {
@@ -553,6 +666,9 @@ exports.registerUser = functions
                     });
                     // Re-fetch the newly created allowlist document
                     allowlistDoc = await allowlistRef.get();
+                }
+                else {
+                    functions.logger.warn(`Dynamic Allowlist: No spreadsheet match found for ${sanitizedEmail} ("${firstName}" "${lastName}")`);
                 }
             }
             catch (sheetErr) {
@@ -617,7 +733,9 @@ exports.registerUser = functions
                 registeredAt: new Date().toISOString(),
             });
             // Atomic cleanup of the verification code
-            transaction.delete(verificationRef);
+            if (isVerificationCodeRequired) {
+                transaction.delete(verificationRef);
+            }
             functions.logger.info(`Security Event: Successfully created user ${sanitizedEmail} (UID: ${authUser.uid}) with role '${assignedRole}'`);
             return {
                 success: true,
